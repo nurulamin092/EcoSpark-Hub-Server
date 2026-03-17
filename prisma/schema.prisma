@@ -5,9 +5,451 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum IdeaStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  SSLCOMMERZ
+  STRIPE
+  SHURJOPAY
+}
+
+enum NotificationType {
+  IDEA_APPROVED
+  IDEA_REJECTED
+  COMMENT_REPLY
+  VOTE_RECEIVED
+  PAYMENT_SUCCESS
+  IDEA_REPORTED
+  NEWSLETTER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+  ACTION_TAKEN
+}
+
+enum ActivityType {
+  IDEA_CREATED
+  COMMENT_ADDED
+  VOTE_CAST
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+model User {
+  id            String     @id @default(uuid())
+  name          String
+  email         String     @unique
+  role          Role       @default(MEMBER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false)
+
+  profileImage String?
+  phone        String? @unique
+  address      String?
+  bio          String? @db.Text
+
+  needPasswordChange Boolean   @default(false)
+  isDeleted          Boolean   @default(false)
+  deletedAt          DateTime?
+
+  resetToken        String?   @unique
+  resetTokenExp     DateTime?
+  verificationToken String?   @unique
+
+  lastLogin  DateTime?
+  loginCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ideas         Idea[]
+  reviewedIdeas Idea[]         @relation("IdeaReviewer")
+  comments      Comment[]
+  votes         Vote[]
+  payments      Payment[]
+  bookmarks     Bookmark[]
+  sessions      Session[]
+  accounts      Account[]
+  notifications Notification[]
+  activities    Activity[]
+  reports       Report[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+  icon        String?
+  isActive    Boolean @default(true)
+  order       Int     @default(0)
+
+  ideas Idea[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Idea {
+  id String @id @default(uuid())
+
+  title       String
+  slug        String @unique
+  problem     String @db.Text
+  solution    String @db.Text
+  description String @db.Text
+
+  images      Json?
+  attachments Json?
+
+  viewCount     Int @default(0)
+  upvoteCount   Int @default(0)
+  downvoteCount Int @default(0)
+  commentCount  Int @default(0)
+  bookmarkCount Int @default(0)
+
+  isPaid Boolean  @default(false)
+  price  Decimal? @db.Decimal(10, 2)
+
+  status IdeaStatus @default(DRAFT)
+
+  adminFeedback String?   @db.Text
+  reviewedAt    DateTime?
+  reviewedBy    String?
+
+  isDeleted Boolean @default(false)
+
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+
+  isFeatured     Boolean   @default(false)
+  featuredAt     DateTime?
+  featuredUntil  DateTime?
+  lastActivityAt DateTime  @default(now())
+
+  categoryId String
+  authorId   String
+
+  category Category @relation(fields: [categoryId], references: [id])
+  author   User     @relation(fields: [authorId], references: [id])
+  reviewer User?    @relation("IdeaReviewer", fields: [reviewedBy], references: [id])
+
+  votes     Vote[]
+  comments  Comment[]
+  payments  Payment[]
+  bookmarks Bookmark[]
+  reports   Report[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([slug])
+  @@index([isFeatured])
+  @@index([lastActivityAt])
+  @@map("ideas")
+}
+
+model Vote {
+  id String @id @default(uuid())
+
+  userId String
+  ideaId String
+  type   VoteType
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, ideaId])
+  @@index([ideaId])
+  @@index([userId])
+  @@map("votes")
+}
+
+model Comment {
+  id      String @id @default(uuid())
+  content String @db.Text
+
+  userId   String
+  ideaId   String
+  parentId String?
+
+  path  String
+  depth Int    @default(0)
+
+  isDeleted Boolean @default(false)
+  isEdited  Boolean @default(false)
+  editCount Int     @default(0)
+  likes     Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reports   Report[]
+
+  @@index([ideaId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([path])
+  @@map("comments")
+}
+
+model Bookmark {
+  id String @id @default(uuid())
+
+  userId String
+  ideaId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, ideaId])
+  @@index([userId])
+  @@index([ideaId])
+  @@map("bookmarks")
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  userId String
+  ideaId String
+
+  amount   Decimal          @db.Decimal(10, 2)
+  currency String           @default("BDT")
+  status   PaymentStatus    @default(PENDING)
+  provider PaymentProvider?
+
+  transactionId String? @unique
+  paymentIntent String?
+  paymentMethod String?
+
+  metadata     Json?
+  refundId     String?
+  refundAmount Decimal? @db.Decimal(10, 2)
+  refundReason String?
+
+  hasAccess       Boolean   @default(false)
+  accessExpiresAt DateTime?
+
+  invoiceNumber String? @unique
+  invoiceUrl    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([ideaId])
+  @@index([status])
+  @@index([transactionId])
+  @@map("payments")
+}
+
+model Notification {
+  id      String           @id @default(uuid())
+  userId  String
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  data    Json?
+  isRead  Boolean          @default(false)
+  readAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  ideaId      String?
+  commentId   String?
+  reason      String
+  description String?      @db.Text
+  status      ReportStatus @default(PENDING)
+
+  reporter User     @relation(fields: [reporterId], references: [id])
+  idea     Idea?    @relation(fields: [ideaId], references: [id])
+  comment  Comment? @relation(fields: [commentId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  resolvedBy String?
+  notes      String?   @db.Text
+
+  @@map("reports")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique @db.Text
+  userId    String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  providerId        String
+  providerAccountId String
+  refreshToken      String? @db.Text
+  accessToken       String? @db.Text
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Newsletter {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletters")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  userEmail String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id          String      @id @default(uuid())
+  key         String      @unique
+  value       Json?
+  type        SettingType
+  description String?
+  isPublic    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Activity {
+  id     String       @id @default(uuid())
+  userId String
+  type   ActivityType
+  data   Json?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("activities")
 }
