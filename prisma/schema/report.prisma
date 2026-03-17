@@ -1,0 +1,27 @@
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+  ACTION_TAKEN
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  ideaId      String?
+  commentId   String?
+  reason      String
+  description String?      @db.Text
+  status      ReportStatus @default(PENDING)
+
+  reporter User     @relation(fields: [reporterId], references: [id])
+  idea     Idea?    @relation(fields: [ideaId], references: [id])
+  comment  Comment? @relation(fields: [commentId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  resolvedBy String?
+  notes      String?   @db.Text
+
+  @@map("reports")
+}

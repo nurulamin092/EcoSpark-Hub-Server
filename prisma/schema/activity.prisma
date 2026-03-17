@@ -1,0 +1,19 @@
+enum ActivityType {
+  IDEA_CREATED
+  COMMENT_ADDED
+  VOTE_CAST
+}
+
+model Activity {
+  id     String       @id @default(uuid())
+  userId String
+  type   ActivityType
+  data   Json?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("activities")
+}

@@ -1,0 +1,51 @@
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  SSLCOMMERZ
+  STRIPE
+  SHURJOPAY
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  userId String
+  ideaId String
+
+  amount   Decimal          @db.Decimal(10, 2)
+  currency String           @default("BDT")
+  status   PaymentStatus    @default(PENDING)
+  provider PaymentProvider?
+
+  transactionId String? @unique
+  paymentIntent String?
+  paymentMethod String?
+
+  metadata     Json?
+  refundId     String?
+  refundAmount Decimal? @db.Decimal(10, 2)
+  refundReason String?
+
+  hasAccess       Boolean   @default(false)
+  accessExpiresAt DateTime?
+
+  invoiceNumber String? @unique
+  invoiceUrl    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([ideaId])
+  @@index([status])
+  @@index([transactionId])
+  @@map("payments")
+}

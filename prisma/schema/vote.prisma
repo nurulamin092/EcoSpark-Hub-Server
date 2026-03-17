@@ -1,0 +1,22 @@
+enum VoteType {
+  UP
+  DOWN
+}
+
+model Vote {
+  id String @id @default(uuid())
+
+  userId String
+  ideaId String
+  type   VoteType
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, ideaId])
+  @@index([ideaId])
+  @@index([userId])
+  @@map("votes")
+}

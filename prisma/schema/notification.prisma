@@ -1,0 +1,28 @@
+enum NotificationType {
+  IDEA_APPROVED
+  IDEA_REJECTED
+  COMMENT_REPLY
+  VOTE_RECEIVED
+  PAYMENT_SUCCESS
+  IDEA_REPORTED
+  NEWSLETTER
+}
+
+model Notification {
+  id      String           @id @default(uuid())
+  userId  String
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  data    Json?
+  isRead  Boolean          @default(false)
+  readAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
