@@ -41,6 +41,8 @@ model User {
   notifications Notification[]
   activities    Activity[]
   reports       Report[]
+  admin         Admin?
+  member        Member?
 
   @@map("users")
 }
