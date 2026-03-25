@@ -28,7 +28,7 @@ const registerMember = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     httpStatusCode: status.CREATED,
     success: true,
-    message: "Patient registered successfully",
+    message: "User registered successfully",
     data: {
       token,
       accessToken,

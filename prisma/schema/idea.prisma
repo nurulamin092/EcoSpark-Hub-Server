@@ -28,27 +28,32 @@ model Idea {
 
   status IdeaStatus @default(DRAFT)
 
-  adminFeedback String?   @db.Text
-  reviewedAt    DateTime?
-  reviewedBy    String?
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  publishedAt DateTime?
 
-  isDeleted Boolean @default(false)
+  adminFeedback String? @db.Text
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   metaTitle       String?
   metaDescription String?
   metaKeywords    String?
 
-  isFeatured     Boolean   @default(false)
-  featuredAt     DateTime?
-  featuredUntil  DateTime?
-  lastActivityAt DateTime  @default(now())
+  isFeatured    Boolean   @default(false)
+  featuredAt    DateTime?
+  featuredUntil DateTime?
 
-  categoryId String
-  authorId   String
+  lastActivityAt DateTime @default(now())
+
+  categoryId       String
+  authorId         String
+  reviewedByUserId String?
 
   category Category @relation(fields: [categoryId], references: [id])
   author   User     @relation(fields: [authorId], references: [id])
-  reviewer User?    @relation("IdeaReviewer", fields: [reviewedBy], references: [id])
+  reviewer User?    @relation("IdeaReviewer", fields: [reviewedByUserId], references: [id])
 
   votes     Vote[]
   comments  Comment[]
@@ -56,16 +61,21 @@ model Idea {
   bookmarks Bookmark[]
   reports   Report[]
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([categoryId])
   @@index([authorId])
-  @@index([createdAt])
-  @@index([slug])
+  @@index([createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([status, upvoteCount(sort: Desc)])
   @@index([isFeatured])
-  @@index([lastActivityAt])
+  @@index([isPaid])
+  @@index([isDeleted])
+  @@index([categoryId, status])
+  @@index([authorId, status])
+  @@index([slug])
+  @@index([lastActivityAt(sort: Desc)])
   @@map("ideas")
 }

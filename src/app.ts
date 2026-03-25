@@ -36,7 +36,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1", IndexRoutes);
 

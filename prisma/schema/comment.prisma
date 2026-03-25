@@ -17,7 +17,8 @@ model Comment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  parent Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+
   replies Comment[] @relation("CommentReplies")
 
   createdAt DateTime @default(now())
@@ -28,5 +29,7 @@ model Comment {
   @@index([userId])
   @@index([parentId])
   @@index([path])
+  @@index([ideaId, path])
+  @@index([createdAt(sort: Desc)])
   @@map("comments")
 }

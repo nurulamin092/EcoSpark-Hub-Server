@@ -18,5 +18,6 @@ model Vote {
   @@unique([userId, ideaId])
   @@index([ideaId])
   @@index([userId])
+  @@index([createdAt(sort: Desc)])
   @@map("votes")
 }
