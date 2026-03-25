@@ -6,18 +6,28 @@ import status from "http-status";
 import slugify from "slugify";
 import { IdeaStatus } from "../../../generated/prisma/enums";
 
-const createIdea = async (userId: string, payload: ICreateIdeaPayload) => {
-  const slug = slugify(payload.title, { lower: true, strict: true });
+const generateUniqueSlug = async (title: string) => {
+  let slug = slugify(title, { lower: true, strict: true });
 
-  const idea = await prisma.idea.create({
+  const exists = await prisma.idea.findUnique({ where: { slug } });
+
+  if (exists) {
+    slug = `${slug}-${Date.now()}`;
+  }
+
+  return slug;
+};
+
+const createIdea = async (userId: string, payload: ICreateIdeaPayload) => {
+  const slug = await generateUniqueSlug(payload.title);
+
+  return prisma.idea.create({
     data: {
       ...payload,
       slug,
       authorId: userId,
     },
   });
-
-  return idea;
 };
 
 const updateIdea = async (
@@ -27,7 +37,8 @@ const updateIdea = async (
 ) => {
   const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
 
-  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea || idea.isDeleted)
+    throw new AppError(status.NOT_FOUND, "Idea not found");
 
   if (idea.authorId !== userId)
     throw new AppError(status.FORBIDDEN, "Not allowed");
@@ -35,18 +46,26 @@ const updateIdea = async (
   if (idea.status !== IdeaStatus.DRAFT)
     throw new AppError(status.BAD_REQUEST, "Only draft can be edited");
 
-  const updated = await prisma.idea.update({
-    where: { id: ideaId },
-    data: payload,
-  });
+  let slug;
 
-  return updated;
+  if (payload.title) {
+    slug = await generateUniqueSlug(payload.title);
+  }
+
+  return prisma.idea.update({
+    where: { id: ideaId },
+    data: {
+      ...payload,
+      ...(slug && { slug }),
+    },
+  });
 };
 
 const deleteIdea = async (userId: string, ideaId: string) => {
   const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
 
-  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea || idea.isDeleted)
+    throw new AppError(status.NOT_FOUND, "Idea not found");
 
   if (idea.authorId !== userId)
     throw new AppError(status.FORBIDDEN, "Not allowed");
@@ -54,15 +73,20 @@ const deleteIdea = async (userId: string, ideaId: string) => {
   if (idea.status !== IdeaStatus.DRAFT)
     throw new AppError(status.BAD_REQUEST, "Only draft can be deleted");
 
-  await prisma.idea.delete({ where: { id: ideaId } });
-
-  return null;
+  return prisma.idea.update({
+    where: { id: ideaId },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
 };
 
 const submitIdea = async (userId: string, ideaId: string) => {
   const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
 
-  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea || idea.isDeleted)
+    throw new AppError(status.NOT_FOUND, "Idea not found");
 
   if (idea.authorId !== userId)
     throw new AppError(status.FORBIDDEN, "Not allowed");
@@ -92,7 +116,8 @@ const getAllIdeas = async (query: any) => {
   const skip = (Number(page) - 1) * Number(limit);
 
   const where: any = {
-    status: "APPROVED",
+    status: IdeaStatus.APPROVED,
+    isDeleted: false,
   };
 
   if (search) {
@@ -112,32 +137,25 @@ const getAllIdeas = async (query: any) => {
 
   let orderBy: any = { createdAt: "desc" };
 
-  if (sort === "top") {
-    orderBy = { upvoteCount: "desc" };
-  }
+  if (sort === "top") orderBy = { upvoteCount: "desc" };
+  if (sort === "commented") orderBy = { commentCount: "desc" };
 
-  if (sort === "commented") {
-    orderBy = { commentCount: "desc" };
-  }
-
-  const ideas = await prisma.idea.findMany({
-    where,
-    skip,
-    take: Number(limit),
-    orderBy,
-  });
-
-  const total = await prisma.idea.count({ where });
+  const [ideas, total] = await prisma.$transaction([
+    prisma.idea.findMany({
+      where,
+      skip,
+      take: Number(limit),
+      orderBy,
+    }),
+    prisma.idea.count({ where }),
+  ]);
 
   return {
-    meta: {
-      page: Number(page),
-      limit: Number(limit),
-      total,
-    },
+    meta: { page: Number(page), limit: Number(limit), total },
     data: ideas,
   };
 };
+
 const getSingleIdea = async (id: string) => {
   const idea = await prisma.idea.findUnique({
     where: { id },
@@ -147,17 +165,26 @@ const getSingleIdea = async (id: string) => {
     },
   });
 
-  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea || idea.isDeleted)
+    throw new AppError(status.NOT_FOUND, "Idea not found");
 
   return idea;
 };
 
 const approveIdea = async (adminId: string, ideaId: string) => {
+  const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
+
+  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+
+  if (idea.status !== IdeaStatus.UNDER_REVIEW)
+    throw new AppError(status.BAD_REQUEST, "Not in review stage");
+
   return prisma.idea.update({
     where: { id: ideaId },
     data: {
       status: IdeaStatus.APPROVED,
       reviewedByUserId: adminId,
+      reviewedAt: new Date(),
       publishedAt: new Date(),
     },
   });
@@ -168,11 +195,20 @@ const rejectIdea = async (
   ideaId: string,
   feedback: string,
 ) => {
+  if (!feedback) {
+    throw new AppError(status.BAD_REQUEST, "Feedback is required");
+  }
+
+  const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
+
+  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+
   return prisma.idea.update({
     where: { id: ideaId },
     data: {
       status: IdeaStatus.REJECTED,
       reviewedByUserId: adminId,
+      reviewedAt: new Date(),
       adminFeedback: feedback,
     },
   });
