@@ -59,6 +59,9 @@ importers:
       qs:
         specifier: ^6.15.0
         version: 6.15.0
+      slugify:
+        specifier: ^1.6.8
+        version: 1.6.8
       stripe:
         specifier: ^20.4.1
         version: 20.4.1(@types/node@25.5.0)
@@ -1624,6 +1627,10 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
+
+  slugify@1.6.8:
+    resolution: {integrity: sha512-HVk9X1E0gz3mSpoi60h/saazLKXKaZThMLU3u/aNwoYn8/xQyX2MGxL0ui2eaokkD7tF+Zo+cKTHUbe1mmmGzA==}
+    engines: {node: '>=8.0.0'}
 
   sparse-bitfield@3.0.3:
     resolution: {integrity: sha512-kvzhi7vqKTfkh0PZU+2D2PIllw2ymqJKujUcyPMd9Y75Nv4nPbGJZXNhxsgdQab2BmlDct1YnfQCguEvHr7VsQ==}
@@ -3225,6 +3232,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  slugify@1.6.8: {}
 
   sparse-bitfield@3.0.3:
     dependencies:
