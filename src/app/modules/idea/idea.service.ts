@@ -80,12 +80,19 @@ const submitIdea = async (userId: string, ideaId: string) => {
 };
 
 const getAllIdeas = async (query: any) => {
-  const { page = 1, limit = 10, search, category } = query;
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    category,
+    isPaid,
+    sort = "recent",
+  } = query;
 
-  const skip = (page - 1) * limit;
+  const skip = (Number(page) - 1) * Number(limit);
 
   const where: any = {
-    status: IdeaStatus.APPROVED,
+    status: "APPROVED",
   };
 
   if (search) {
@@ -99,16 +106,38 @@ const getAllIdeas = async (query: any) => {
     where.categoryId = category;
   }
 
+  if (isPaid !== undefined) {
+    where.isPaid = isPaid === "true";
+  }
+
+  let orderBy: any = { createdAt: "desc" };
+
+  if (sort === "top") {
+    orderBy = { upvoteCount: "desc" };
+  }
+
+  if (sort === "commented") {
+    orderBy = { commentCount: "desc" };
+  }
+
   const ideas = await prisma.idea.findMany({
     where,
-    skip: Number(skip),
+    skip,
     take: Number(limit),
-    orderBy: { createdAt: "desc" },
+    orderBy,
   });
 
-  return ideas;
-};
+  const total = await prisma.idea.count({ where });
 
+  return {
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+    },
+    data: ideas,
+  };
+};
 const getSingleIdea = async (id: string) => {
   const idea = await prisma.idea.findUnique({
     where: { id },

@@ -40,4 +40,4 @@ router.patch(
   IdeaController.rejectIdea,
 );
 
-export const IdeaRoutes = router;
+export const IdeaRoutes: Router = router;
