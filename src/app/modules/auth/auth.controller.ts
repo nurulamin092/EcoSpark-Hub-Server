@@ -3,6 +3,7 @@ import { catchAsync } from "../../shared/catchAsync";
 import { AuthService } from "./auth.service";
 import { sendResponse } from "../../shared/sendResponse";
 import status from "http-status";
+import ms, { StringValue } from "ms";
 import { tokenUtils } from "../../utils/token";
 import AppError from "../../errorHelpers/AppError";
 import { CookieUtils } from "../../utils/cookie";
@@ -10,30 +11,54 @@ import { envVars } from "../../config/env";
 import { auth } from "../../lib/auth";
 
 const registerMember = catchAsync(async (req: Request, res: Response) => {
+  const maxAge = ms(envVars.ACCESS_TOKEN_EXPIRES_IN as StringValue);
+  console.log({ maxAge });
   const payload = req.body;
 
   console.log(payload);
 
   const result = await AuthService.registerMember(payload);
 
+  const { accessToken, refreshToken, token, ...rest } = result;
+
+  tokenUtils.setAccessTokenCookie(res, accessToken);
+  tokenUtils.setRefreshTokenCookie(res, refreshToken);
+  tokenUtils.setBetterAuthSessionCookie(res, token as string);
+
   sendResponse(res, {
-    httpStatusCode: 201,
+    httpStatusCode: status.CREATED,
     success: true,
-    message: "Member registered successfully",
-    data: result,
-  });
-});
-const loginUser = catchAsync(async (req: Request, res: Response) => {
-  const payload = req.body;
-  const result = await AuthService.loginUser(payload);
-  sendResponse(res, {
-    httpStatusCode: 200,
-    success: true,
-    message: "User logged in successfully",
-    data: result,
+    message: "Patient registered successfully",
+    data: {
+      token,
+      accessToken,
+      refreshToken,
+      ...rest,
+    },
   });
 });
 
+const loginUser = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+  const result = await AuthService.loginUser(payload);
+  const { accessToken, refreshToken, token, ...rest } = result;
+
+  tokenUtils.setAccessTokenCookie(res, accessToken);
+  tokenUtils.setRefreshTokenCookie(res, refreshToken);
+  tokenUtils.setBetterAuthSessionCookie(res, token);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "User logged in successfully",
+    data: {
+      token,
+      accessToken,
+      refreshToken,
+      ...rest,
+    },
+  });
+});
 const getMe = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   console.log({ user });

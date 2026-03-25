@@ -1,23 +1,28 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer, emailOTP } from "better-auth/plugins";
-import { prisma } from "./prisma";
 import { Role, UserStatus } from "../../generated/prisma/enums";
 import { envVars } from "../config/env";
 import { sendEmail } from "../utils/email";
+import { prisma } from "./prisma";
 
 export const auth = betterAuth({
+  baseURL: envVars.BETTER_AUTH_URL,
+  secret: envVars.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
   },
+
   socialProviders: {
     google: {
       clientId: envVars.GOOGLE_CLIENT_ID,
       clientSecret: envVars.GOOGLE_CLIENT_SECRET,
+      // callbackUrl: envVars.GOOGLE_CALLBACK_URL,
       mapProfileToUser: () => {
         return {
           role: Role.MEMBER,
@@ -36,6 +41,7 @@ export const auth = betterAuth({
     sendOnSignIn: true,
     autoSignInAfterVerification: true,
   },
+
   user: {
     additionalFields: {
       role: {
@@ -43,11 +49,13 @@ export const auth = betterAuth({
         required: true,
         defaultValue: Role.MEMBER,
       },
+
       status: {
         type: "string",
         required: true,
         defaultValue: UserStatus.ACTIVE,
       },
+
       needPasswordChange: {
         type: "boolean",
         required: true,
@@ -65,20 +73,9 @@ export const auth = betterAuth({
         required: false,
         defaultValue: null,
       },
-      phone: {
-        type: "string",
-        required: false,
-      },
-      address: {
-        type: "string",
-        required: false,
-      },
-      bio: {
-        type: "string",
-        required: false,
-      },
     },
   },
+
   plugins: [
     bearer(),
     emailOTP({
@@ -90,6 +87,20 @@ export const auth = betterAuth({
               email,
             },
           });
+
+          if (!user) {
+            console.error(
+              `User with email ${email} not found. Cannot send verification OTP.`,
+            );
+            return;
+          }
+
+          if (user && user.role === Role.SUPER_ADMIN) {
+            console.log(
+              `User with email ${email} is a super admin. Skipping sending verification OTP.`,
+            );
+            return;
+          }
 
           if (user && !user.emailVerified) {
             sendEmail({
@@ -146,6 +157,7 @@ export const auth = betterAuth({
   ],
 
   advanced: {
+    // disableCSRFCheck: true,
     useSecureCookies: false,
     cookies: {
       state: {
