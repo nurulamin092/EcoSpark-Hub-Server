@@ -140,22 +140,20 @@ const getAllIdeas = async (query: any) => {
   if (sort === "top") orderBy = { upvoteCount: "desc" };
   if (sort === "commented") orderBy = { commentCount: "desc" };
 
-  const [ideas, total] = await prisma.$transaction([
-    prisma.idea.findMany({
-      where,
-      skip,
-      take: Number(limit),
-      orderBy,
-    }),
-    prisma.idea.count({ where }),
-  ]);
+  const ideas = await prisma.idea.findMany({
+    where,
+    skip,
+    take: Number(limit),
+    orderBy,
+  });
+
+  const total = await prisma.idea.count({ where });
 
   return {
     meta: { page: Number(page), limit: Number(limit), total },
     data: ideas,
   };
 };
-
 const getSingleIdea = async (id: string) => {
   const idea = await prisma.idea.findUnique({
     where: { id },

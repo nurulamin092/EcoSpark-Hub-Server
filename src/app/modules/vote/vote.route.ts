@@ -32,4 +32,4 @@ router.delete(
   VoteController.removeVote,
 );
 
-export const VoteRoutes = router;
+export const VoteRoutes: Router = router;
