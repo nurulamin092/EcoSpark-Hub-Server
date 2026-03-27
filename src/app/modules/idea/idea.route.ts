@@ -4,6 +4,7 @@ import { checkAuth } from "../../middleware/checkAuth";
 import { Role } from "../../../generated/prisma/enums";
 import { validateRequest } from "../../middleware/validateRequest";
 import { createIdeaZodSchema, updateIdeaZodSchema } from "./idea.validation";
+import { checkPaymentAccess } from "../../middleware/checkPaymentAccess";
 
 const router = Router();
 
@@ -26,7 +27,12 @@ router.delete("/:id", checkAuth(Role.MEMBER), IdeaController.deleteIdea);
 router.patch("/:id/submit", checkAuth(Role.MEMBER), IdeaController.submitIdea);
 
 router.get("/", IdeaController.getAllIdeas);
-router.get("/:id", IdeaController.getSingleIdea);
+router.get(
+  "/:id",
+  checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
+  checkPaymentAccess,
+  IdeaController.getSingleIdea,
+);
 
 router.patch(
   "/:id/approve",

@@ -154,7 +154,7 @@ const getAllIdeas = async (query: any) => {
     data: ideas,
   };
 };
-const getSingleIdea = async (id: string) => {
+const getSingleIdea = async (id: string, userId?: string) => {
   const idea = await prisma.idea.findUnique({
     where: { id },
     include: {
@@ -165,8 +165,28 @@ const getSingleIdea = async (id: string) => {
 
   if (!idea || idea.isDeleted)
     throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea || idea.isDeleted) {
+    throw new AppError(status.NOT_FOUND, "Idea not found");
+  }
 
-  return idea;
+  if (!idea.isPaid) return idea;
+
+  if (idea.authorId === userId) return idea;
+
+  const hasAccess = await prisma.payment.findFirst({
+    where: {
+      userId,
+      ideaId: id,
+      status: "SUCCESS",
+    },
+  });
+
+  if (hasAccess) return idea;
+  return {
+    ...idea,
+    description: " Purchase to unlock full content",
+    solution: " Purchase to unlock full content",
+  };
 };
 
 const approveIdea = async (adminId: string, ideaId: string) => {

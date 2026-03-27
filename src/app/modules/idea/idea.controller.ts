@@ -66,7 +66,10 @@ const getAllIdeas = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getSingleIdea = catchAsync(async (req: Request, res: Response) => {
-  const result = await IdeaService.getSingleIdea(req.params.id as string);
+  const result = await IdeaService.getSingleIdea(
+    req.params.id as string,
+    req.user?.userId,
+  );
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -75,7 +78,6 @@ const getSingleIdea = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 const approveIdea = catchAsync(async (req: Request, res: Response) => {
   const result = await IdeaService.approveIdea(
     req.user.userId,
