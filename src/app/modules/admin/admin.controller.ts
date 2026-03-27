@@ -5,7 +5,7 @@ import { sendResponse } from "../../shared/sendResponse";
 import { AdminService } from "./admin.service";
 
 const getAllAdmins = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdminService.getAllAdmins();
+  const result = await AdminService.getAllAdmins(req.query);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
