@@ -15,6 +15,14 @@ app.set("query parser", (str: string) => qs.parse(str));
 
 app.set("view engine", "ejs");
 app.set("views", path.resolve(process.cwd(), `src/app/templates`));
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    console.log("Received Stripe webhook:", req.body);
+    res.status(200).send("Webhook received");
+  },
+);
 
 app.use(
   cors({

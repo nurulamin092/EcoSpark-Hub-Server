@@ -17,21 +17,24 @@ model Payment {
   userId String
   ideaId String
 
-  amount   Decimal          @db.Decimal(10, 2)
-  currency String           @default("BDT")
-  status   PaymentStatus    @default(PENDING)
+  amount   Decimal @db.Decimal(10, 2)
+  currency String  @default("USD")
+
+  status   PaymentStatus
   provider PaymentProvider?
 
   transactionId String? @unique
-  paymentIntent String?
-  paymentMethod String?
 
-  metadata     Json?
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String?
+
+  paymentMethod String?
+  metadata      Json?
+
   refundId     String?
   refundAmount Decimal? @db.Decimal(10, 2)
   refundReason String?
 
-  hasAccess       Boolean   @default(false)
   accessExpiresAt DateTime?
 
   invoiceNumber String? @unique
@@ -43,9 +46,9 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, ideaId, provider])
   @@index([userId])
   @@index([ideaId])
   @@index([status])
-  @@index([transactionId])
   @@map("payments")
 }
