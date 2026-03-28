@@ -1,21 +1,38 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { prisma } from "../../lib/prisma";
 import { ICreateIdeaPayload, IUpdateIdeaPayload } from "./idea.interface";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
 import slugify from "slugify";
-import { IdeaStatus } from "../../../generated/prisma/enums";
+import { IdeaStatus, PaymentStatus } from "../../../generated/prisma/enums";
 
 const generateUniqueSlug = async (title: string) => {
-  let slug = slugify(title, { lower: true, strict: true });
+  const baseSlug = slugify(title, { lower: true, strict: true });
+  let slug = baseSlug;
+  let counter = 1;
 
-  const exists = await prisma.idea.findUnique({ where: { slug } });
+  while (true) {
+    const exists = await prisma.idea.findUnique({ where: { slug } });
+    if (!exists) break;
 
-  if (exists) {
-    slug = `${slug}-${Date.now()}`;
+    slug = `${baseSlug}-${Date.now()}-${counter}`;
+    counter++;
   }
 
   return slug;
+};
+
+const calculateTrendingScore = (idea: any) => {
+  const score = idea.upvoteCount - idea.downvoteCount;
+  const order = Math.log10(Math.max(Math.abs(score), 1));
+  const sign = score > 0 ? 1 : score < 0 ? -1 : 0;
+
+  const seconds =
+    (new Date(idea.createdAt).getTime() - new Date(2020, 0, 1).getTime()) /
+    1000;
+
+  return sign * order + seconds / 45000;
 };
 
 const createIdea = async (userId: string, payload: ICreateIdeaPayload) => {
@@ -46,7 +63,7 @@ const updateIdea = async (
   if (idea.status !== IdeaStatus.DRAFT)
     throw new AppError(status.BAD_REQUEST, "Only draft can be edited");
 
-  let slug;
+  let slug = idea.slug;
 
   if (payload.title) {
     slug = await generateUniqueSlug(payload.title);
@@ -56,7 +73,7 @@ const updateIdea = async (
     where: { id: ideaId },
     data: {
       ...payload,
-      ...(slug && { slug }),
+      slug,
     },
   });
 };
@@ -127,9 +144,7 @@ const getAllIdeas = async (query: any) => {
     ];
   }
 
-  if (category) {
-    where.categoryId = category;
-  }
+  if (category) where.categoryId = category;
 
   if (isPaid !== undefined) {
     where.isPaid = isPaid === "true";
@@ -140,20 +155,34 @@ const getAllIdeas = async (query: any) => {
   if (sort === "top") orderBy = { upvoteCount: "desc" };
   if (sort === "commented") orderBy = { commentCount: "desc" };
 
-  const ideas = await prisma.idea.findMany({
+  let ideas = await prisma.idea.findMany({
     where,
     skip,
     take: Number(limit),
     orderBy,
   });
 
+  if (sort === "trending") {
+    ideas = ideas
+      .map((idea) => ({
+        ...idea,
+        trendingScore: calculateTrendingScore(idea),
+      }))
+      .sort((a, b) => b.trendingScore - a.trendingScore);
+  }
+
   const total = await prisma.idea.count({ where });
 
   return {
-    meta: { page: Number(page), limit: Number(limit), total },
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+    },
     data: ideas,
   };
 };
+
 const getSingleIdea = async (id: string, userId?: string) => {
   const idea = await prisma.idea.findUnique({
     where: { id },
@@ -165,23 +194,33 @@ const getSingleIdea = async (id: string, userId?: string) => {
 
   if (!idea || idea.isDeleted)
     throw new AppError(status.NOT_FOUND, "Idea not found");
-  if (!idea || idea.isDeleted) {
-    throw new AppError(status.NOT_FOUND, "Idea not found");
-  }
+
+  prisma.idea
+    .update({
+      where: { id },
+      data: {
+        viewCount: { increment: 1 },
+        lastActivityAt: new Date(),
+      },
+    })
+    .catch(() => {});
 
   if (!idea.isPaid) return idea;
 
-  if (idea.authorId === userId) return idea;
+  if (userId && idea.authorId === userId) return idea;
 
-  const hasAccess = await prisma.payment.findFirst({
-    where: {
-      userId,
-      ideaId: id,
-      status: "SUCCESS",
-    },
-  });
+  const hasAccess =
+    userId &&
+    (await prisma.payment.findFirst({
+      where: {
+        userId,
+        ideaId: id,
+        status: PaymentStatus.SUCCESS,
+      },
+    }));
 
   if (hasAccess) return idea;
+
   return {
     ...idea,
     description: " Purchase to unlock full content",
@@ -213,13 +252,14 @@ const rejectIdea = async (
   ideaId: string,
   feedback: string,
 ) => {
-  if (!feedback) {
-    throw new AppError(status.BAD_REQUEST, "Feedback is required");
-  }
+  if (!feedback) throw new AppError(status.BAD_REQUEST, "Feedback is required");
 
   const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
 
   if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+
+  if (idea.status !== IdeaStatus.UNDER_REVIEW)
+    throw new AppError(status.BAD_REQUEST, "Not in review stage");
 
   return prisma.idea.update({
     where: { id: ideaId },
@@ -241,4 +281,5 @@ export const IdeaService = {
   getSingleIdea,
   approveIdea,
   rejectIdea,
+  calculateTrendingScore,
 };

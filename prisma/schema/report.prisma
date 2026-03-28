@@ -1,27 +1,44 @@
 enum ReportStatus {
   PENDING
-  REVIEWED
+  REVIEWEDy
   DISMISSED
   ACTION_TAKEN
 }
 
+enum ReportType {
+  IDEA
+  COMMENT
+}
+
 model Report {
-  id          String       @id @default(uuid())
-  reporterId  String
-  ideaId      String?
-  commentId   String?
+  id String @id @default(uuid())
+
+  reporterId String
+  ideaId     String?
+  commentId  String?
+
+  type        ReportType
   reason      String
-  description String?      @db.Text
-  status      ReportStatus @default(PENDING)
+  description String?    @db.Text
 
-  reporter User     @relation(fields: [reporterId], references: [id])
-  idea     Idea?    @relation(fields: [ideaId], references: [id])
-  comment  Comment? @relation(fields: [commentId], references: [id])
+  status ReportStatus @default(PENDING)
 
-  createdAt  DateTime  @default(now())
   resolvedAt DateTime?
   resolvedBy String?
   notes      String?   @db.Text
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reporter User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  idea     Idea?    @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, ideaId])
+  @@unique([reporterId, commentId])
+  @@index([reporterId])
+  @@index([ideaId])
+  @@index([commentId])
+  @@index([status])
   @@map("reports")
 }
