@@ -11,6 +11,7 @@ import {
   PaymentStatus,
 } from "../../../generated/prisma/enums";
 import { ActivityService } from "../activity/activity.service";
+import { NotificationService } from "../notification/notification.service";
 
 const generateUniqueSlug = async (title: string) => {
   const baseSlug = slugify(title, { lower: true, strict: true });
@@ -58,7 +59,6 @@ const createIdea = async (userId: string, payload: ICreateIdeaPayload) => {
 
   return idea;
 };
-
 const updateIdea = async (
   userId: string,
   ideaId: string,
@@ -272,7 +272,13 @@ const rejectIdea = async (
 
   if (idea.status !== IdeaStatus.UNDER_REVIEW)
     throw new AppError(status.BAD_REQUEST, "Not in review stage");
-
+  await NotificationService.createNotification(
+    idea.authorId,
+    "IDEA_REJECTED",
+    "Idea Rejected ❌",
+    feedback,
+    { ideaId: idea.id },
+  );
   return prisma.idea.update({
     where: { id: ideaId },
     data: {

@@ -2,6 +2,8 @@
 import { prisma } from "../../lib/prisma";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
+import { NotificationService } from "../notification/notification.service";
+import { ActivityType } from "../../../generated/prisma/enums";
 
 const MAX_DEPTH = 5;
 
@@ -14,9 +16,10 @@ const createComment = async (
   return prisma.$transaction(async (tx) => {
     let path = "";
     let depth = 0;
+    let parent: any = null; 
 
     if (parentId) {
-      const parent = await tx.comment.findUnique({
+      parent = await tx.comment.findUnique({
         where: { id: parentId },
       });
 
@@ -60,13 +63,26 @@ const createComment = async (
     await tx.activity.create({
       data: {
         userId,
-        type: "COMMENT_ADDED",
+        type: ActivityType.COMMENT_ADDED,
         data: {
           commentId: updatedComment.id,
           ideaId: updatedComment.ideaId,
         },
       },
     });
+
+    if (parent && parent.userId !== userId) {
+      await NotificationService.createNotification(
+        parent.userId,
+        "COMMENT_REPLY",
+        "New Reply 💬",
+        "Someone replied to your comment",
+        {
+          ideaId,
+          commentId: updatedComment.id,
+        },
+      );
+    }
 
     return updatedComment;
   });

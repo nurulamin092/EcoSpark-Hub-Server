@@ -1,8 +1,13 @@
 import { Prisma } from "../../../generated/prisma/client";
-import { IdeaStatus, ActivityType } from "../../../generated/prisma/enums";
+import {
+  IdeaStatus,
+  ActivityType,
+  NotificationType,
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
+import { NotificationService } from "../notification/notification.service";
 
 interface VoteResult {
   message: string;
@@ -38,12 +43,10 @@ const updateVoteCount = async (
     throw new AppError(status.BAD_REQUEST, "Invalid vote operation");
   }
 
-  const updatedIdea = await tx.idea.update({
+  return tx.idea.update({
     where: { id: ideaId },
     data: {
-      [field]: {
-        increment: value,
-      },
+      [field]: { increment: value },
       lastActivityAt: new Date(),
     },
     select: {
@@ -51,8 +54,6 @@ const updateVoteCount = async (
       downvoteCount: true,
     },
   });
-
-  return updatedIdea;
 };
 
 const voteIdea = async (
@@ -138,6 +139,16 @@ const voteIdea = async (
         },
       });
 
+      if (idea.authorId !== userId) {
+        await NotificationService.createNotification(
+          idea.authorId,
+          NotificationType.VOTE_RECEIVED,
+          "Vote Updated 👍",
+          "Someone changed their vote on your idea",
+          { ideaId },
+        );
+      }
+
       return {
         message: "Vote updated",
         voteCounts: {
@@ -164,6 +175,16 @@ const voteIdea = async (
         },
       },
     });
+
+    if (idea.authorId !== userId) {
+      await NotificationService.createNotification(
+        idea.authorId,
+        NotificationType.VOTE_RECEIVED,
+        "New Vote 👍",
+        "Someone voted on your idea",
+        { ideaId },
+      );
+    }
 
     return {
       message: "Vote added",

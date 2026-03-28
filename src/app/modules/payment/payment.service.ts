@@ -7,6 +7,7 @@ import {
   PaymentStatus,
   PaymentProvider,
 } from "../../../generated/prisma/enums";
+import { NotificationService } from "../notification/notification.service";
 
 interface CheckoutSessionResult {
   url: string;
@@ -29,7 +30,6 @@ const createCheckoutSession = async (
     throw new AppError(status.BAD_REQUEST, "You already purchased this idea");
   }
 
-  // ✅ Idea check
   const idea = await prisma.idea.findUnique({
     where: { id: ideaId },
   });
@@ -61,7 +61,13 @@ const createCheckoutSession = async (
       },
     });
   }
-
+  await NotificationService.createNotification(
+    userId,
+    "PAYMENT_SUCCESS",
+    "Payment Successful 💰",
+    "You unlocked a premium idea",
+    { ideaId },
+  );
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
