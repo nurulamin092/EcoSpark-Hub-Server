@@ -29,7 +29,7 @@ const createComment = async (
       }
 
       depth = parent.depth + 1;
-      path = `${parent.path}`;
+      path = parent.path;
     }
 
     const newComment = await tx.comment.create({
@@ -45,12 +45,11 @@ const createComment = async (
 
     const finalPath = parentId ? `${path}.${newComment.id}` : newComment.id;
 
-    const updated = await tx.comment.update({
+    const updatedComment = await tx.comment.update({
       where: { id: newComment.id },
       data: { path: finalPath },
     });
 
-    // update idea comment count
     await tx.idea.update({
       where: { id: ideaId },
       data: {
@@ -58,7 +57,18 @@ const createComment = async (
       },
     });
 
-    return updated;
+    await tx.activity.create({
+      data: {
+        userId,
+        type: "COMMENT_ADDED",
+        data: {
+          commentId: updatedComment.id,
+          ideaId: updatedComment.ideaId,
+        },
+      },
+    });
+
+    return updatedComment;
   });
 };
 
@@ -73,7 +83,6 @@ const getCommentsByIdea = async (ideaId: string) => {
     },
   });
 
-  // Build tree
   const map = new Map();
 
   comments.forEach((c) => {

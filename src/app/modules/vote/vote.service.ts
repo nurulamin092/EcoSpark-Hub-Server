@@ -1,5 +1,5 @@
 import { Prisma } from "../../../generated/prisma/client";
-import { IdeaStatus } from "../../../generated/prisma/enums";
+import { IdeaStatus, ActivityType } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
@@ -20,7 +20,6 @@ const updateVoteCount = async (
 ) => {
   const field = type === "UP" ? "upvoteCount" : "downvoteCount";
 
-  // ✅ Prevent negative count (CRITICAL FIX)
   const idea = await tx.idea.findUnique({
     where: { id: ideaId },
     select: {
@@ -45,7 +44,7 @@ const updateVoteCount = async (
       [field]: {
         increment: value,
       },
-      lastActivityAt: new Date(), // ✅ activity tracking
+      lastActivityAt: new Date(),
     },
     select: {
       upvoteCount: true,
@@ -77,7 +76,6 @@ const voteIdea = async (
       );
     }
 
-    // ✅ Optional (good practice)
     if (idea.authorId === userId) {
       throw new AppError(status.BAD_REQUEST, "You cannot vote your own idea");
     }
@@ -90,13 +88,24 @@ const voteIdea = async (
 
     let updatedCounts;
 
-    // ✅ Remove vote (toggle)
     if (existingVote && existingVote.type === type) {
       await tx.vote.delete({
         where: { id: existingVote.id },
       });
 
       updatedCounts = await updateVoteCount(tx, ideaId, type, -1);
+
+      await tx.activity.create({
+        data: {
+          userId,
+          type: ActivityType.VOTE_CAST,
+          data: {
+            ideaId,
+            action: "REMOVE",
+            voteType: type,
+          },
+        },
+      });
 
       return {
         message: "Vote removed",
@@ -107,7 +116,6 @@ const voteIdea = async (
       };
     }
 
-    // ✅ Switch vote
     if (existingVote) {
       await tx.vote.update({
         where: { id: existingVote.id },
@@ -116,6 +124,19 @@ const voteIdea = async (
 
       await updateVoteCount(tx, ideaId, existingVote.type, -1);
       updatedCounts = await updateVoteCount(tx, ideaId, type, +1);
+
+      await tx.activity.create({
+        data: {
+          userId,
+          type: ActivityType.VOTE_CAST,
+          data: {
+            ideaId,
+            action: "SWITCH",
+            from: existingVote.type,
+            to: type,
+          },
+        },
+      });
 
       return {
         message: "Vote updated",
@@ -126,12 +147,23 @@ const voteIdea = async (
       };
     }
 
-    // ✅ New vote
     await tx.vote.create({
       data: { userId, ideaId, type },
     });
 
     updatedCounts = await updateVoteCount(tx, ideaId, type, +1);
+
+    await tx.activity.create({
+      data: {
+        userId,
+        type: ActivityType.VOTE_CAST,
+        data: {
+          ideaId,
+          action: "ADD",
+          voteType: type,
+        },
+      },
+    });
 
     return {
       message: "Vote added",
@@ -170,6 +202,18 @@ const removeVote = async (
 
     await tx.vote.delete({
       where: { id: vote.id },
+    });
+
+    await tx.activity.create({
+      data: {
+        userId,
+        type: ActivityType.VOTE_CAST,
+        data: {
+          ideaId,
+          action: "REMOVE",
+          voteType: vote.type,
+        },
+      },
     });
 
     return {

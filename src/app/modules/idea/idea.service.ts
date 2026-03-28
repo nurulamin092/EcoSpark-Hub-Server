@@ -5,7 +5,12 @@ import { ICreateIdeaPayload, IUpdateIdeaPayload } from "./idea.interface";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
 import slugify from "slugify";
-import { IdeaStatus, PaymentStatus } from "../../../generated/prisma/enums";
+import {
+  ActivityType,
+  IdeaStatus,
+  PaymentStatus,
+} from "../../../generated/prisma/enums";
+import { ActivityService } from "../activity/activity.service";
 
 const generateUniqueSlug = async (title: string) => {
   const baseSlug = slugify(title, { lower: true, strict: true });
@@ -38,13 +43,20 @@ const calculateTrendingScore = (idea: any) => {
 const createIdea = async (userId: string, payload: ICreateIdeaPayload) => {
   const slug = await generateUniqueSlug(payload.title);
 
-  return prisma.idea.create({
+  const idea = await prisma.idea.create({
     data: {
       ...payload,
       slug,
       authorId: userId,
     },
   });
+
+  await ActivityService.createActivity(userId, ActivityType.IDEA_CREATED, {
+    ideaId: idea.id,
+    title: idea.title,
+  });
+
+  return idea;
 };
 
 const updateIdea = async (
