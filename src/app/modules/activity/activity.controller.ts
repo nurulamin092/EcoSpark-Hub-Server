@@ -1,20 +1,31 @@
 import { Request, Response } from "express";
 import { ActivityService } from "./activity.service";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
 import status from "http-status";
 
-const getMyActivities = catchAsync(async (req: Request, res: Response) => {
-  const result = await ActivityService.getUserActivities(req.user.userId);
+const getMyActivities = async (req: Request, res: Response) => {
+  const result = await ActivityService.getMyActivities(
+    req.user.userId,
+    req.query,
+  );
 
-  sendResponse(res, {
-    httpStatusCode: status.OK,
+  res.status(status.OK).json({
     success: true,
-    message: "Activities fetched",
+    message: "My activities fetched",
     data: result,
   });
-});
+};
+
+const getAllActivities = async (req: Request, res: Response) => {
+  const result = await ActivityService.getAllActivities(req.query);
+
+  res.status(status.OK).json({
+    success: true,
+    message: "All activities fetched",
+    data: result,
+  });
+};
 
 export const ActivityController = {
   getMyActivities,
+  getAllActivities,
 };

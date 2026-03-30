@@ -11,4 +11,10 @@ router.get(
   ActivityController.getMyActivities,
 );
 
-export const ActivityRoutes: Router = router;
+router.get(
+  "/",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  ActivityController.getAllActivities,
+);
+
+export const ActivityRoutes = router;
