@@ -27,7 +27,16 @@ const getAdminById = catchAsync(async (req: Request, res: Response) => {
     data: admin,
   });
 });
+const getDashboard = catchAsync(async (_req: Request, res: Response) => {
+  const result = await AdminService.getFullDashboard();
 
+  sendResponse(res, {
+    success: true,
+    httpStatusCode: status.OK,
+    message: "Dashboard fetched successfully",
+    data: result,
+  });
+});
 const updateAdmin = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const payload = req.body;
@@ -61,4 +70,5 @@ export const AdminController = {
   updateAdmin,
   deleteAdmin,
   getAdminById,
+  getDashboard,
 };

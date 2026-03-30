@@ -9,6 +9,7 @@ import { auth } from "./app/lib/auth";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { IndexRoutes } from "./app/routes";
+import { globalRateLimiter } from "./app/middleware/rateLimiter";
 
 const app: Application = express();
 app.set("query parser", (str: string) => qs.parse(str));
@@ -44,7 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(express.json());
 app.use(cookieParser());
-
+app.use(globalRateLimiter);
 app.use("/api/v1", IndexRoutes);
 
 app.get("/", async (req: Request, res: Response) => {

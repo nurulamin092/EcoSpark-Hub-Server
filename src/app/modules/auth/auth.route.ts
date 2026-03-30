@@ -2,10 +2,11 @@ import { Router } from "express";
 import { AuthController } from "./auth.controller";
 import { checkAuth } from "../../middleware/checkAuth";
 import { Role } from "../../../generated/prisma/enums";
+import { authRateLimiter } from "../../middleware/rateLimiter";
 
 const router = Router();
-router.post("/register", AuthController.registerMember);
-router.post("/login", AuthController.loginUser);
+router.post("/register", authRateLimiter, AuthController.registerMember);
+router.post("/login", authRateLimiter, AuthController.loginUser);
 router.get("/me", AuthController.getMe);
 router.post("/refresh-token", AuthController.getNewToken);
 router.post(

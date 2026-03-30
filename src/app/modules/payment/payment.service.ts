@@ -6,6 +6,7 @@ import { stripe } from "../../config/stripe.config";
 import {
   PaymentStatus,
   PaymentProvider,
+  NotificationType,
 } from "../../../generated/prisma/enums";
 import { NotificationService } from "../notification/notification.service";
 
@@ -61,13 +62,7 @@ const createCheckoutSession = async (
       },
     });
   }
-  await NotificationService.createNotification(
-    userId,
-    "PAYMENT_SUCCESS",
-    "Payment Successful 💰",
-    "You unlocked a premium idea",
-    { ideaId },
-  );
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
@@ -120,7 +115,7 @@ const handleWebhook = async (event: Stripe.Event) => {
         throw new AppError(status.BAD_REQUEST, "Missing metadata");
       }
 
-      await prisma.payment.update({
+      const updatedPayment = await prisma.payment.update({
         where: { id: paymentId },
         data: {
           status: PaymentStatus.SUCCESS,
@@ -130,16 +125,24 @@ const handleWebhook = async (event: Stripe.Event) => {
             typeof session.payment_intent === "string"
               ? session.payment_intent
               : null,
-
           paymentMethod: "card",
-
           accessExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-
           metadata: {
             customerEmail: session.customer_details?.email || null,
           },
         },
       });
+
+      await NotificationService.createNotification(
+        userId,
+        NotificationType.PAYMENT_SUCCESS,
+        "Payment Successful 💰",
+        "You unlocked a premium idea",
+        {
+          ideaId,
+          paymentId: updatedPayment.id,
+        },
+      );
 
       break;
     }

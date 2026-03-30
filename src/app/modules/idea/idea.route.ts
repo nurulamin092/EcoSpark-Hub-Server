@@ -5,11 +5,13 @@ import { Role } from "../../../generated/prisma/enums";
 import { validateRequest } from "../../middleware/validateRequest";
 import { createIdeaZodSchema, updateIdeaZodSchema } from "./idea.validation";
 import { checkPaymentAccess } from "../../middleware/checkPaymentAccess";
+import { writeRateLimiter } from "../../middleware/rateLimiter";
 
 const router = Router();
 
 router.post(
   "/",
+  writeRateLimiter,
   checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(createIdeaZodSchema),
   IdeaController.createIdea,

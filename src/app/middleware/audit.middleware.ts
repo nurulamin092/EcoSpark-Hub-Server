@@ -21,8 +21,8 @@ export const auditMiddleware = (action: string, entity: string) => {
             userAgent: req.headers["user-agent"],
           }).catch(() => {});
         }
-      } catch {
-        // silent fail
+      } catch (err) {
+        console.error("Failed to create audit log", err);
       }
 
       return originalJson.call(this, body);

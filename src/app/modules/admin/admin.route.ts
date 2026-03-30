@@ -13,6 +13,11 @@ router.get(
   AdminController.getAllAdmins,
 );
 router.get(
+  "/dashboard",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  AdminController.getDashboard,
+);
+router.get(
   "/:id",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   AdminController.getAdminById,

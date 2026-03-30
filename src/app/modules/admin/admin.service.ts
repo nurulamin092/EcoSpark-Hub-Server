@@ -1,46 +1,42 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import status from "http-status";
-import { UserStatus } from "../../../generated/prisma/enums";
-import AppError from "../../errorHelpers/AppError";
 
+import status from "http-status";
+import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
-import { IUpdateAdminPayload } from "./admin.interface";
+import { UserStatus } from "../../../generated/prisma/enums";
 import { IRequestUser } from "../../interface/requestUser.interface";
 
 const getAllAdmins = async (query: any) => {
-  const { page = 1, limit = 10 } = query;
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
 
-  const skip = (Number(page) - 1) * Number(limit);
+  const skip = (page - 1) * limit;
 
   const [admins, total] = await Promise.all([
     prisma.admin.findMany({
-      where: {
-        isDeleted: false,
-      },
+      where: { isDeleted: false },
       skip,
-      take: Number(limit),
+      take: limit,
       orderBy: { createdAt: "desc" },
-      include: {
-        user: true,
-      },
+      include: { user: true },
     }),
+
     prisma.admin.count({
-      where: {
-        isDeleted: false,
-      },
+      where: { isDeleted: false },
     }),
   ]);
 
   return {
     meta: {
-      page: Number(page),
-      limit: Number(limit),
+      page,
+      limit,
       total,
-      totalPages: Math.ceil(total / Number(limit)),
+      totalPages: Math.ceil(total / limit),
     },
     data: admins,
   };
 };
+
 const getAdminById = async (id: string) => {
   const admin = await prisma.admin.findFirst({
     where: {
@@ -59,21 +55,22 @@ const getAdminById = async (id: string) => {
   return admin;
 };
 
-const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
-  const isAdminExist = await prisma.admin.findUnique({
+const updateAdmin = async (id: string, payload: any) => {
+  const adminExist = await prisma.admin.findUnique({
     where: { id },
   });
 
-  if (!isAdminExist || isAdminExist.isDeleted) {
+  if (!adminExist || adminExist.isDeleted) {
     throw new AppError(status.NOT_FOUND, "Admin not found");
   }
-
-  const { admin } = payload;
 
   const updatedAdmin = await prisma.admin.update({
     where: { id },
     data: {
-      ...admin,
+      ...payload.admin,
+    },
+    include: {
+      user: true,
     },
   });
 
@@ -81,32 +78,30 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
 };
 
 const deleteAdmin = async (id: string, user: IRequestUser) => {
-  const isAdminExist = await prisma.admin.findUnique({
+  const admin = await prisma.admin.findUnique({
     where: { id },
   });
 
-  if (!isAdminExist || isAdminExist.isDeleted) {
+  if (!admin || admin.isDeleted) {
     throw new AppError(status.NOT_FOUND, "Admin not found");
   }
 
-  if (isAdminExist.userId === user.userId) {
+  if (admin.userId === user.userId) {
     throw new AppError(status.BAD_REQUEST, "You cannot delete yourself");
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const admin = await tx.admin.update({
+    const deletedAdmin = await tx.admin.update({
       where: { id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
       },
-      include: {
-        user: true,
-      },
+      include: { user: true },
     });
 
     await tx.user.update({
-      where: { id: isAdminExist.userId },
+      where: { id: admin.userId },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
@@ -115,21 +110,144 @@ const deleteAdmin = async (id: string, user: IRequestUser) => {
     });
 
     await tx.session.deleteMany({
-      where: { userId: isAdminExist.userId },
+      where: { userId: admin.userId },
     });
 
     await tx.account.deleteMany({
-      where: { userId: isAdminExist.userId },
+      where: { userId: admin.userId },
     });
 
-    return admin;
+    return deletedAdmin;
   });
 
   return result;
 };
+
+const getDashboardStats = async () => {
+  const [
+    totalUsers,
+    totalIdeas,
+    approvedIdeas,
+    pendingIdeas,
+    rejectedIdeas,
+    totalReports,
+    totalRevenue,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.idea.count({ where: { isDeleted: false } }),
+    prisma.idea.count({ where: { status: "APPROVED" } }),
+    prisma.idea.count({ where: { status: "UNDER_REVIEW" } }),
+    prisma.idea.count({ where: { status: "REJECTED" } }),
+    prisma.report.count(),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { status: "SUCCESS" },
+    }),
+  ]);
+
+  return {
+    users: totalUsers,
+    ideas: totalIdeas,
+    ideaStatus: {
+      approved: approvedIdeas,
+      pending: pendingIdeas,
+      rejected: rejectedIdeas,
+    },
+    reports: totalReports,
+    revenue: totalRevenue._sum.amount ?? 0,
+  };
+};
+
+const getTopIdeas = async () => {
+  return prisma.idea.findMany({
+    where: {
+      status: "APPROVED",
+      isDeleted: false,
+    },
+    orderBy: {
+      upvoteCount: "desc",
+    },
+    take: 10,
+    select: {
+      id: true,
+      title: true,
+      upvoteCount: true,
+      viewCount: true,
+    },
+  });
+};
+
+const getRecentReports = async () => {
+  return prisma.report.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    include: {
+      reporter: true,
+      idea: true,
+      comment: true,
+    },
+  });
+};
+
+const getPendingIdeas = async () => {
+  return prisma.idea.findMany({
+    where: {
+      status: "UNDER_REVIEW",
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    include: {
+      author: true,
+    },
+  });
+};
+
+const getGrowthAnalytics = async () => {
+  const ideas = await prisma.$queryRaw`
+    SELECT DATE("createdAt") as date, COUNT(*)::int as count
+    FROM ideas
+    GROUP BY date
+    ORDER BY date ASC
+  `;
+
+  const revenue = await prisma.$queryRaw`
+    SELECT DATE("createdAt") as date, SUM(amount)::float as total
+    FROM payments
+    WHERE status = 'SUCCESS'
+    GROUP BY date
+    ORDER BY date ASC
+  `;
+
+  return {
+    ideas,
+    revenue,
+  };
+};
+
+const getFullDashboard = async () => {
+  const [stats, analytics, topIdeas, reports, pendingIdeas] = await Promise.all(
+    [
+      getDashboardStats(),
+      getGrowthAnalytics(),
+      getTopIdeas(),
+      getRecentReports(),
+      getPendingIdeas(),
+    ],
+  );
+
+  return {
+    stats,
+    analytics,
+    topIdeas,
+    reports,
+    pendingIdeas,
+  };
+};
+
 export const AdminService = {
   getAllAdmins,
   getAdminById,
   updateAdmin,
   deleteAdmin,
+  getFullDashboard,
 };
