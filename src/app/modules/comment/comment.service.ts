@@ -4,6 +4,7 @@ import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
 import { NotificationService } from "../notification/notification.service";
 import { ActivityType } from "../../../generated/prisma/enums";
+import { AuditLogService } from "../auditLog/auditLog.service";
 
 const MAX_DEPTH = 5;
 
@@ -12,11 +13,12 @@ const createComment = async (
   ideaId: string,
   content: string,
   parentId?: string,
+  meta?: { ip?: string; userAgent?: string },
 ) => {
   return prisma.$transaction(async (tx) => {
     let path = "";
     let depth = 0;
-    let parent: any = null; 
+    let parent: any = null;
 
     if (parentId) {
       parent = await tx.comment.findUnique({
@@ -71,6 +73,19 @@ const createComment = async (
       },
     });
 
+    await AuditLogService.createAuditLog(
+      {
+        userId,
+        action: "CREATE",
+        entity: "COMMENT",
+        entityId: updatedComment.id,
+        newValue: updatedComment,
+        ipAddress: meta?.ip,
+        userAgent: meta?.userAgent,
+      },
+      tx,
+    );
+
     if (parent && parent.userId !== userId) {
       await NotificationService.createNotification(
         parent.userId,
@@ -118,23 +133,45 @@ const getCommentsByIdea = async (ideaId: string) => {
   return tree;
 };
 
-const deleteComment = async (userId: string, commentId: string) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
+const deleteComment = async (
+  userId: string,
+  commentId: string,
+  meta?: { ip?: string; userAgent?: string },
+) => {
+  return prisma.$transaction(async (tx) => {
+    const comment = await tx.comment.findUnique({
+      where: { id: commentId },
+    });
 
-  if (!comment) throw new AppError(status.NOT_FOUND, "Comment not found");
+    if (!comment) throw new AppError(status.NOT_FOUND, "Comment not found");
 
-  if (comment.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "Not allowed");
-  }
+    if (comment.userId !== userId) {
+      throw new AppError(status.FORBIDDEN, "Not allowed");
+    }
 
-  return prisma.comment.update({
-    where: { id: commentId },
-    data: {
-      content: "[deleted]",
-      isDeleted: true,
-    },
+    const deleted = await tx.comment.update({
+      where: { id: commentId },
+      data: {
+        content: "[deleted]",
+        isDeleted: true,
+      },
+    });
+
+    await AuditLogService.createAuditLog(
+      {
+        userId,
+        action: "DELETE",
+        entity: "COMMENT",
+        entityId: commentId,
+        oldValue: comment,
+        newValue: deleted,
+        ipAddress: meta?.ip,
+        userAgent: meta?.userAgent,
+      },
+      tx,
+    );
+
+    return deleted;
   });
 };
 
@@ -142,24 +179,43 @@ const updateComment = async (
   userId: string,
   commentId: string,
   content: string,
+  meta?: { ip?: string; userAgent?: string },
 ) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const comment = await tx.comment.findUnique({
+      where: { id: commentId },
+    });
 
-  if (!comment) throw new AppError(status.NOT_FOUND, "Comment not found");
+    if (!comment) throw new AppError(status.NOT_FOUND, "Comment not found");
 
-  if (comment.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "Not allowed");
-  }
+    if (comment.userId !== userId) {
+      throw new AppError(status.FORBIDDEN, "Not allowed");
+    }
 
-  return prisma.comment.update({
-    where: { id: commentId },
-    data: {
-      content,
-      isEdited: true,
-      editCount: { increment: 1 },
-    },
+    const updated = await tx.comment.update({
+      where: { id: commentId },
+      data: {
+        content,
+        isEdited: true,
+        editCount: { increment: 1 },
+      },
+    });
+
+    await AuditLogService.createAuditLog(
+      {
+        userId,
+        action: "UPDATE",
+        entity: "COMMENT",
+        entityId: commentId,
+        oldValue: comment,
+        newValue: updated,
+        ipAddress: meta?.ip,
+        userAgent: meta?.userAgent,
+      },
+      tx,
+    );
+
+    return updated;
   });
 };
 

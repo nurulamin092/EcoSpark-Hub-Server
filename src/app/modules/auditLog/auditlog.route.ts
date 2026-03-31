@@ -11,4 +11,4 @@ router.get(
   AuditLogController.getLogs,
 );
 
-export const AuditLogRoutes = router;
+export const AuditLogRoutes: Router = router;
