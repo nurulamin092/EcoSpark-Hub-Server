@@ -13,4 +13,4 @@ router.post(
 
 router.get("/me", checkAuth(Role.MEMBER), PaymentController.getMyPayments);
 
-export const PaymentRoutes = router;
+export const PaymentRoutes: Router = router;
