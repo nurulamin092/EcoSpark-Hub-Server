@@ -5,12 +5,27 @@ import { CategoryRoutes } from "../modules/category/category.route";
 import { VoteRoutes } from "../modules/vote/vote.route";
 import { CommentRoutes } from "../modules/comment/comment.route";
 import { BookmarkRoutes } from "../modules/bookmark/bookmark.route";
+import { AdminRoutes } from "../modules/admin/admin.route";
+import { PaymentRoutes } from "../modules/payment/payment.route";
+import { NotificationRoutes } from "../modules/notification/notification.route";
+import { ReportRoutes } from "../modules/report/report.route";
+import { NewsletterRoutes } from "../modules/newsletter/newsletter.routes";
+import { ActivityRoutes } from "../modules/activity/activity.route";
+import { AuditLogRoutes } from "../modules/auditLog/auditlog.route";
 
 const router = Router();
+
 router.use("/auth", AuthRoutes);
 router.use("/ideas", IdeaRoutes);
 router.use("/categories", CategoryRoutes);
 router.use("/votes", VoteRoutes);
 router.use("/comments", CommentRoutes);
 router.use("/bookmarks", BookmarkRoutes);
+router.use("/admin", AdminRoutes);
+router.use("/payments", PaymentRoutes);
+router.use("/notifications", NotificationRoutes);
+router.use("/reports", ReportRoutes);
+router.use("/newsletter", NewsletterRoutes);
+router.use("/activities", ActivityRoutes);
+router.use("/audit-logs", AuditLogRoutes);
 export const IndexRoutes: Router = router;

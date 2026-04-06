@@ -1,4 +1,3 @@
-/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { prisma } from "../../lib/prisma";
@@ -11,7 +10,7 @@ const toJson = (
   if (value === undefined || value === null) return Prisma.JsonNull;
 
   try {
-    return value as Prisma.InputJsonValue;
+    return JSON.parse(JSON.stringify(value));
   } catch {
     return Prisma.JsonNull;
   }
@@ -21,35 +20,40 @@ const createAuditLog = async (
   payload: ICreateAuditLogPayload,
   tx?: Prisma.TransactionClient,
 ) => {
-  const client = tx || prisma;
-  return client.auditLog.create({
-    data: {
-      userId: payload.userId,
-      userEmail: payload.userEmail,
-      action: payload.action,
-      entity: payload.entity,
-      entityId: payload.entityId,
-      oldValue: toJson(payload.oldValue),
-      newValue: toJson(payload.newValue),
-      ipAddress: payload.ipAddress,
-      userAgent: payload.userAgent,
-    },
-  });
+  try {
+    const client = tx ?? prisma;
+
+    return await client.auditLog.create({
+      data: {
+        userId: payload.userId ?? null,
+        userEmail: payload.userEmail ?? null,
+        action: payload.action,
+        entity: payload.entity,
+        entityId: payload.entityId,
+        oldValue: toJson(payload.oldValue),
+        newValue: toJson(payload.newValue),
+        ipAddress: payload.ipAddress ?? null,
+        userAgent: payload.userAgent ?? null,
+      },
+    });
+  } catch (error) {
+    console.error("AuditLog Error:", error);
+    // NEVER break main flow
+    return null;
+  }
 };
 
 const getAuditLogs = async (query: any) => {
-  let { page = 1, limit = 10, userId, entity, action } = query;
-
-  page = Number(page) || 1;
-  limit = Math.min(Number(limit) || 10, 100);
+  const page = Math.max(Number(query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 100);
 
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.AuditLogWhereInput = {};
 
-  if (userId) where.userId = String(userId);
-  if (entity) where.entity = String(entity);
-  if (action) where.action = String(action);
+  if (query.userId) where.userId = String(query.userId);
+  if (query.entity) where.entity = String(query.entity);
+  if (query.action) where.action = String(query.action);
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({

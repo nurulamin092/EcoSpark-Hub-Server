@@ -23,4 +23,4 @@ router.patch(
   NotificationController.markAllAsRead,
 );
 
-export const NotificationRoutes = router;
+export const NotificationRoutes: Router = router;

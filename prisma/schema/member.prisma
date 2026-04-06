@@ -6,6 +6,7 @@ model Member {
   profilePhoto  String?
   contactNumber String?
   address       String?
+  bio           String?
   isDeleted     Boolean   @default(false)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())

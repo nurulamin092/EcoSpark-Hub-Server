@@ -2,6 +2,8 @@
 
 import { prisma } from "../../lib/prisma";
 import { NotificationType } from "../../../generated/prisma/enums";
+import AppError from "../../errorHelpers/AppError";
+import status from "http-status";
 
 const createNotification = async (
   userId: string,
@@ -10,18 +12,26 @@ const createNotification = async (
   message: string,
   data?: any,
 ) => {
+  if (!userId) {
+    throw new AppError(status.BAD_REQUEST, "User ID is required");
+  }
+
   return prisma.notification.create({
     data: {
       userId,
       type,
       title,
       message,
-      data,
+      data: data ?? undefined,
     },
   });
 };
 
 const getMyNotifications = async (userId: string) => {
+  if (!userId) {
+    throw new AppError(status.BAD_REQUEST, "User ID is required");
+  }
+
   return prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -29,6 +39,14 @@ const getMyNotifications = async (userId: string) => {
 };
 
 const markAsRead = async (userId: string, notificationId: string) => {
+  const notification = await prisma.notification.findUnique({
+    where: { id: notificationId },
+  });
+
+  if (!notification || notification.userId !== userId) {
+    throw new AppError(status.NOT_FOUND, "Notification not found");
+  }
+
   return prisma.notification.update({
     where: { id: notificationId },
     data: {
