@@ -33,23 +33,46 @@ const getMyPayments = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const webhook = catchAsync(async (req: Request, res: Response) => {
+const webhook = async (req: Request, res: Response) => {
   const sig = req.headers["stripe-signature"] as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+  if (!webhookSecret) {
+    console.error("❌ STRIPE_WEBHOOK_SECRET is not configured");
+    return res.status(status.INTERNAL_SERVER_ERROR).json({
+      error: "Webhook secret not configured",
+    });
+  }
+
+  if (!sig) {
+    console.error("❌ No Stripe signature found in request");
+    return res.status(status.BAD_REQUEST).json({
+      error: "No signature found",
+    });
+  }
 
   let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err: any) {
-    console.error(`Webhook signature verification failed: ${err.message}`);
-    return res.status(status.BAD_REQUEST).send(`Webhook Error: ${err.message}`);
+    console.error(`❌ Webhook signature verification failed: ${err.message}`);
+
+    return res.status(status.OK).json({
+      received: false,
+      error: "Webhook signature verification failed",
+    });
   }
 
-  await PaymentService.handleWebhook(event);
-
   res.status(status.OK).json({ received: true });
-});
+
+  try {
+    await PaymentService.handleWebhook(event);
+    console.log(`✅ Webhook processed successfully: ${event.type}`);
+  } catch (error) {
+    console.error(`❌ Failed to process webhook ${event.type}:`, error);
+  }
+};
 
 const verifyAccess = catchAsync(async (req: Request, res: Response) => {
   const { ideaId } = req.params;

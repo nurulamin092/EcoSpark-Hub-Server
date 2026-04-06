@@ -15,7 +15,6 @@ import {
 const router = Router();
 
 // ==================== Admin Management Routes ====================
-
 router.get(
   "/",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
@@ -27,21 +26,6 @@ router.get(
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   AdminController.getDashboard,
 );
-
-router.get(
-  "/:id",
-  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-  AdminController.getAdminById,
-);
-
-router.patch(
-  "/:id",
-  checkAuth(Role.SUPER_ADMIN),
-  validateRequest(updateAdminZodSchema),
-  AdminController.updateAdmin,
-);
-
-router.delete("/:id", checkAuth(Role.SUPER_ADMIN), AdminController.deleteAdmin);
 
 // ==================== Member Management Routes ====================
 
@@ -121,7 +105,6 @@ router.get(
 );
 
 // ==================== Export Routes ====================
-
 router.get(
   "/export/users",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
@@ -135,5 +118,21 @@ router.get(
   validateRequest(exportOptionsZodSchema),
   AdminController.exportIdeas,
 );
+// ==================== Admin Dynamic Routes (ALWAYS LAST) ====================
+
+router.get(
+  "/:id",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  AdminController.getAdminById,
+);
+
+router.patch(
+  "/:id",
+  checkAuth(Role.SUPER_ADMIN),
+  validateRequest(updateAdminZodSchema),
+  AdminController.updateAdmin,
+);
+
+router.delete("/:id", checkAuth(Role.SUPER_ADMIN), AdminController.deleteAdmin);
 
 export const AdminRoutes: Router = router;

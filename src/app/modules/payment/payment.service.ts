@@ -102,91 +102,151 @@ const createCheckoutSession = async (
   };
 };
 
-const handleWebhook = async (event: Stripe.Event) => {
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
+const handleWebhook = async (event: Stripe.Event): Promise<void> => {
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-      const userId = session.metadata?.userId;
-      const ideaId = session.metadata?.ideaId;
-      const paymentId = session.metadata?.paymentId;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await handleCheckoutSessionCompleted(session);
+          break;
+        }
 
-      if (!userId || !ideaId || !paymentId) {
-        throw new AppError(status.BAD_REQUEST, "Missing metadata");
+        case "checkout.session.expired": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await handleCheckoutSessionExpired(session);
+          break;
+        }
+
+        case "charge.refunded": {
+          const charge = event.data.object as Stripe.Charge;
+          await handleChargeRefunded(charge);
+          break;
+        }
+
+        case "payment_intent.payment_failed": {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          await handlePaymentFailed(paymentIntent);
+          break;
+        }
+
+        default:
+          console.log(`⚠️ Unhandled event type: ${event.type}`);
       }
-
-      const updatedPayment = await prisma.payment.update({
-        where: { id: paymentId },
-        data: {
-          status: PaymentStatus.SUCCESS,
-          transactionId: session.id,
-          stripeSessionId: session.id,
-          stripePaymentIntentId:
-            typeof session.payment_intent === "string"
-              ? session.payment_intent
-              : null,
-          paymentMethod: "card",
-          accessExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          metadata: {
-            customerEmail: session.customer_details?.email || null,
-          },
-        },
-      });
-
-      await NotificationService.createNotification(
-        userId,
-        NotificationType.PAYMENT_SUCCESS,
-        "Payment Successful 💰",
-        "You unlocked a premium idea",
-        {
-          ideaId,
-          paymentId: updatedPayment.id,
-        },
+      return;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(
+        `❌ Webhook processing attempt ${attempt} failed for ${event.type}:`,
+        error,
       );
 
-      break;
-    }
-
-    case "checkout.session.expired": {
-      const session = event.data.object as Stripe.Checkout.Session;
-
-      await prisma.payment.updateMany({
-        where: {
-          stripeSessionId: session.id,
-          status: PaymentStatus.PENDING,
-        },
-        data: {
-          status: PaymentStatus.FAILED,
-        },
-      });
-
-      break;
-    }
-
-    case "charge.refunded": {
-      const charge = event.data.object as Stripe.Charge;
-
-      const paymentIntentId =
-        typeof charge.payment_intent === "string"
-          ? charge.payment_intent
-          : null;
-
-      if (!paymentIntentId) return;
-
-      await prisma.payment.updateMany({
-        where: {
-          stripePaymentIntentId: paymentIntentId,
-        },
-        data: {
-          status: PaymentStatus.REFUNDED,
-          refundAmount: charge.amount_refunded / 100,
-          refundReason: charge.refunded ? "Refund processed" : "Unknown reason",
-        },
-      });
-
-      break;
+      if (attempt < maxRetries) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
+        );
+      }
     }
   }
+
+  console.error(
+    `❌ Failed to process webhook ${event.type} after ${maxRetries} attempts:`,
+    lastError,
+  );
+  throw lastError;
+};
+
+const handleCheckoutSessionCompleted = async (
+  session: Stripe.Checkout.Session,
+) => {
+  const userId = session.metadata?.userId;
+  const ideaId = session.metadata?.ideaId;
+  const paymentId = session.metadata?.paymentId;
+
+  if (!userId || !ideaId || !paymentId) {
+    throw new AppError(status.BAD_REQUEST, "Missing metadata in webhook");
+  }
+
+  const updatedPayment = await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: PaymentStatus.SUCCESS,
+      transactionId: session.id,
+      stripeSessionId: session.id,
+      stripePaymentIntentId:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : null,
+      paymentMethod: "card",
+      accessExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      metadata: {
+        customerEmail: session.customer_details?.email || null,
+        customerName: session.customer_details?.name || null,
+      },
+    },
+  });
+
+  await NotificationService.createNotification(
+    userId,
+    NotificationType.PAYMENT_SUCCESS,
+    "Payment Successful 💰",
+    `You successfully purchased access to "${updatedPayment.ideaId}"`,
+    {
+      ideaId,
+      paymentId: updatedPayment.id,
+    },
+  );
+};
+
+const handleCheckoutSessionExpired = async (
+  session: Stripe.Checkout.Session,
+) => {
+  await prisma.payment.updateMany({
+    where: {
+      stripeSessionId: session.id,
+      status: PaymentStatus.PENDING,
+    },
+    data: {
+      status: PaymentStatus.FAILED,
+    },
+  });
+};
+
+const handleChargeRefunded = async (charge: Stripe.Charge) => {
+  const paymentIntentId =
+    typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+
+  if (!paymentIntentId) return;
+
+  await prisma.payment.updateMany({
+    where: {
+      stripePaymentIntentId: paymentIntentId,
+    },
+    data: {
+      status: PaymentStatus.REFUNDED,
+      refundAmount: charge.amount_refunded / 100,
+      refundReason: charge.refunded ? "Refund processed" : "Unknown reason",
+    },
+  });
+};
+
+const handlePaymentFailed = async (paymentIntent: Stripe.PaymentIntent) => {
+  await prisma.payment.updateMany({
+    where: {
+      stripePaymentIntentId: paymentIntent.id,
+      status: PaymentStatus.PENDING,
+    },
+    data: {
+      status: PaymentStatus.FAILED,
+      metadata: {
+        failureMessage:
+          paymentIntent.last_payment_error?.message || "Payment failed",
+      },
+    },
+  });
 };
 
 const getMyPayments = async (userId: string) => {
