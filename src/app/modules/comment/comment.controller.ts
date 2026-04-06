@@ -12,6 +12,7 @@ const createComment = catchAsync(async (req: Request, res: Response) => {
     ideaId,
     content,
     parentId,
+    { ip: req.ip, userAgent: req.headers["user-agent"] },
   );
 
   sendResponse(res, {
@@ -58,6 +59,7 @@ const updateComment = catchAsync(async (req: Request, res: Response) => {
     req.user.userId,
     req.params.id as string,
     content,
+    { ip: req.ip, userAgent: req.headers["user-agent"] },
   );
 
   sendResponse(res, {
@@ -69,7 +71,12 @@ const updateComment = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteComment = catchAsync(async (req: Request, res: Response) => {
-  await CommentService.deleteComment(req.user.userId, req.params.id as string);
+  await CommentService.deleteComment(
+    req.user.userId,
+    req.params.id as string,
+    req.user.role,
+    { ip: req.ip, userAgent: req.headers["user-agent"] },
+  );
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -78,9 +85,30 @@ const deleteComment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// New: Hard delete for admins
+const hardDeleteComment = catchAsync(async (req: Request, res: Response) => {
+  const { reason } = req.body;
+
+  const result = await CommentService.hardDeleteComment(
+    req.user.userId,
+    req.params.id as string,
+    req.user.role,
+    reason,
+    { ip: req.ip, userAgent: req.headers["user-agent"] },
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Comment permanently deleted",
+    data: result,
+  });
+});
+
 export const CommentController = {
   createComment,
   getComments,
   updateComment,
   deleteComment,
+  hardDeleteComment,
 };
