@@ -21,6 +21,7 @@ const createComment = async (
     let depth = 0;
     let parent: any = null;
 
+    // ✅ 1. Idea validation (from 1st)
     const idea = await tx.idea.findUnique({
       where: { id: ideaId },
       select: { id: true, isDeleted: true },
@@ -30,6 +31,7 @@ const createComment = async (
       throw new AppError(status.NOT_FOUND, "Idea not found");
     }
 
+    // ✅ 2. Parent handling (improved)
     if (parentId) {
       parent = await tx.comment.findUnique({
         where: { id: parentId, isDeleted: false },
@@ -47,6 +49,7 @@ const createComment = async (
       path = parent.path;
     }
 
+    // ✅ 3. Create comment
     const newComment = await tx.comment.create({
       data: {
         content,
@@ -58,6 +61,7 @@ const createComment = async (
       },
     });
 
+    // ✅ 4. Path update
     const finalPath = parentId ? `${path}.${newComment.id}` : newComment.id;
 
     const updatedComment = await tx.comment.update({
@@ -65,6 +69,7 @@ const createComment = async (
       data: { path: finalPath },
     });
 
+    // ✅ 5. Idea update (with lastActivityAt)
     await tx.idea.update({
       where: { id: ideaId },
       data: {
@@ -73,6 +78,7 @@ const createComment = async (
       },
     });
 
+    // ✅ 6. Activity log
     await tx.activity.create({
       data: {
         userId,
@@ -84,6 +90,7 @@ const createComment = async (
       },
     });
 
+    // ✅ 7. Audit log
     await AuditLogService.createAuditLog(
       {
         userId,
@@ -97,6 +104,7 @@ const createComment = async (
       tx,
     );
 
+    // ✅ 8. Smart notification
     if (parent && parent.userId !== userId) {
       await NotificationService.createNotification(
         parent.userId,
@@ -248,7 +256,6 @@ const hardDeleteComment = async (
       throw new AppError(status.NOT_FOUND, "Comment not found");
     }
 
-    // Only admins can hard delete
     const isAdmin = userRole === Role.ADMIN || userRole === Role.SUPER_ADMIN;
     if (!isAdmin) {
       throw new AppError(
@@ -257,8 +264,7 @@ const hardDeleteComment = async (
       );
     }
 
-    const replyIds = comment.replies.map((r) => r.id);
-
+    const replyIds = comment.replies.map((r: { id: string }) => r.id);
     await tx.comment.deleteMany({
       where: {
         OR: [{ id: commentId }, { parentId: commentId }],
