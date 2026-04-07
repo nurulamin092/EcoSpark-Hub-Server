@@ -499,7 +499,7 @@ const bulkRejectIdeas = async (
       data: {
         status: IdeaStatus.REJECTED,
         reviewedByUserId: adminId,
-        
+
         reviewedAt: new Date(),
         adminFeedback: feedback,
       },
@@ -534,8 +534,7 @@ const bulkActivateMembers = async (memberIds: string[]) => {
     if (members.length !== memberIds.length) {
       throw new AppError(status.BAD_REQUEST, "Invalid member IDs");
     }
-
-    const userIds = members.map((m) => m.userId);
+    const userIds = members.map((m: { userId: string }) => m.userId);
 
     await tx.user.updateMany({
       where: {
@@ -570,7 +569,7 @@ const bulkDeactivateMembers = async (memberIds: string[]) => {
       throw new AppError(status.BAD_REQUEST, "Invalid member IDs");
     }
 
-    const userIds = members.map((m) => m.userId);
+    const userIds = members.map((m: { userId: string }) => m.userId);
 
     await tx.user.updateMany({
       where: {
