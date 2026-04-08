@@ -64,6 +64,7 @@ model Idea {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ==================== Optimized Indexes for Performance ====================
   @@index([status])
   @@index([categoryId])
   @@index([authorId])
@@ -77,5 +78,11 @@ model Idea {
   @@index([authorId, status])
   @@index([slug])
   @@index([lastActivityAt(sort: Desc)])
+  // ==================== Composite Indexes for Common Queries ====================
+  @@index([status, isPaid, isDeleted])
+  @@index([categoryId, status, isDeleted])
+  @@index([authorId, status, isDeleted])
+  @@index([status, upvoteCount, createdAt])
+  @@index([isFeatured, featuredUntil, status])
   @@map("ideas")
 }
