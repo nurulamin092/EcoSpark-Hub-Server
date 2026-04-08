@@ -1,0 +1,37 @@
+/**
+ * @file index.ts
+ * @description Service exports for Admin module
+ * @version 1.0.0
+ */
+
+// Admin Management
+export {
+  getAllAdmins,
+  getAdminById,
+  updateAdmin,
+  deleteAdmin,
+} from "./admin.management.service";
+
+// Member Management
+export {
+  getAllMembers,
+  getMemberById,
+  updateMember,
+  deleteMember,
+  activateMember,
+  deactivateMember,
+} from "./member.management.service";
+
+// Bulk Operations
+export {
+  bulkApproveIdeas,
+  bulkRejectIdeas,
+  bulkActivateMembers,
+  bulkDeactivateMembers,
+} from "./bulk.operations.service";
+
+// Dashboard
+export { getFullDashboard, getAllIdeasForAdmin } from "./dashboard.service";
+
+// Export
+export { exportUsers, exportIdeas } from "./export.service";
