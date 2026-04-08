@@ -1,139 +1,187 @@
 # Backend Folder Structure
 
 ```bash
-backend/
-├── prisma/
-│   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts
+eco-spark-hub-server/
 │
 ├── src/
-│   ├── app/
-│   │   ├── modules/
-│   │   │   ├── auth/
-│   │   │   │   ├── auth.controller.ts
-│   │   │   │   ├── auth.service.ts
-│   │   │   │   ├── auth.repository.ts
-│   │   │   │   ├── auth.validation.ts
-│   │   │   │   ├── auth.interface.ts
-│   │   │   │   ├── auth.constant.ts
-│   │   │   │   ├── auth.utils.ts
-│   │   │   │   └── auth.route.ts
-│   │   │   │
-│   │   │   ├── user/
-│   │   │   │   ├── user.controller.ts
-│   │   │   │   ├── user.service.ts
-│   │   │   │   ├── user.repository.ts
-│   │   │   │   ├── user.validation.ts
-│   │   │   │   ├── user.interface.ts
-│   │   │   │   ├── user.constant.ts
-│   │   │   │   └── user.route.ts
-│   │   │   │
-│   │   │   ├── idea/
-│   │   │   │   ├── idea.controller.ts
-│   │   │   │   ├── idea.service.ts
-│   │   │   │   ├── idea.repository.ts
-│   │   │   │   ├── idea.validation.ts
-│   │   │   │   ├── idea.interface.ts
-│   │   │   │   ├── idea.constant.ts
-│   │   │   │   └── idea.route.ts
-│   │   │   │
-│   │   │   ├── category/
-│   │   │   │   ├── category.controller.ts
-│   │   │   │   ├── category.service.ts
-│   │   │   │   ├── category.repository.ts
-│   │   │   │   ├── category.validation.ts
-│   │   │   │   ├── category.interface.ts
-│   │   │   │   └── category.route.ts
-│   │   │   │
-│   │   │   ├── vote/
-│   │   │   │   ├── vote.controller.ts
-│   │   │   │   ├── vote.service.ts
-│   │   │   │   ├── vote.repository.ts
-│   │   │   │   ├── vote.interface.ts
-│   │   │   │   └── vote.route.ts
-│   │   │   │
-│   │   │   ├── comment/
-│   │   │   │   ├── comment.controller.ts
-│   │   │   │   ├── comment.service.ts
-│   │   │   │   ├── comment.repository.ts
-│   │   │   │   ├── comment.validation.ts
-│   │   │   │   ├── comment.interface.ts
-│   │   │   │   └── comment.route.ts
-│   │   │   │
-│   │   │   ├── payment/
-│   │   │   │   ├── payment.controller.ts
-│   │   │   │   ├── payment.service.ts
-│   │   │   │   ├── payment.repository.ts
-│   │   │   │   ├── payment.validation.ts
-│   │   │   │   ├── payment.interface.ts
-│   │   │   │   ├── payment.utils.ts
-│   │   │   │   └── payment.route.ts
-│   │   │   │
-│   │   │   └── admin/
-│   │   │       ├── admin.controller.ts
-│   │   │       ├── admin.service.ts
-│   │   │       ├── admin.repository.ts
-│   │   │       ├── admin.validation.ts
-│   │   │       ├── admin.interface.ts
-│   │   │       └── admin.route.ts
-│   │   │
-│   │   ├── middleware/
-│   │   │   ├── auth.middleware.ts
-│   │   │   ├── role.middleware.ts
-│   │   │   ├── validate.middleware.ts
-│   │   │   ├── rateLimit.middleware.ts
-│   │   │   ├── error.middleware.ts
-│   │   │   ├── notFound.middleware.ts
-│   │   │   └── fileUpload.middleware.ts
-│   │   │
-│   │   ├── config/
-│   │   │   ├── env.config.ts
-│   │   │   ├── database.config.ts
-│   │   │   ├── redis.config.ts
-│   │   │   └── payment.config.ts
-│   │   │
-│   │   ├── utils/
-│   │   │   ├── jwt.utils.ts
-│   │   │   ├── token.utils.ts
-│   │   │   ├── email.utils.ts
-│   │   │   ├── pagination.utils.ts
-│   │   │   ├── slug.utils.ts
-│   │   │   ├── file.utils.ts
-│   │   │   └── apiResponse.utils.ts
-│   │   │
-│   │   ├── lib/
-│   │   │   ├── prisma.lib.ts
-│   │   │   ├── redis.lib.ts
-│   │   │   ├── email.lib.ts
-│   │   │   └── payment.lib.ts
-│   │   │
-│   │   ├── errors/
-│   │   │   ├── ApiError.ts
-│   │   │   ├── errorCodes.ts
-│   │   │   └── prismaError.handler.ts
-│   │   │
-│   │   ├── types/
-│   │   │   ├── express.d.ts
-│   │   │   ├── user.types.ts
-│   │   │   └── idea.types.ts
-│   │   │
-│   │   ├── constants/
-│   │   │   ├── roles.ts
-│   │   │   ├── ideaStatus.ts
-│   │   │   ├── categories.ts
-│   │   │   └── httpStatus.ts
-│   │   │
-│   │   └── routes/
-│   │       └── index.ts
-│   │
 │   ├── app.ts
-│   └── server.ts
+│   ├── server.ts
+│   │
+│   └── app/
+│       │
+│       ├── config/
+│       │   ├── env.ts
+│       │   ├── stripe.config.ts
+│       │   └── cloudinary.config.ts
+│       │
+│       ├── errorHelpers/
+│       │   ├── AppError.ts
+│       │   └── handleZodError.ts
+│       │
+│       ├── interface/
+│       │   ├── error.interface.ts
+│       │   ├── index.ts
+│       │   └── requestUser.interface.ts
+│       │
+│       ├── lib/
+│       │   ├── auth.ts
+│       │   └── prisma.ts
+│       │
+│       ├── middleware/
+│       │   ├── audit.middleware.ts
+│       │   ├── checkAuth.ts
+│       │   ├── checkPaymentAccess.ts
+│       │   ├── globalErrorHandler.ts
+│       │   ├── notFound.ts
+│       │   ├── rateLimiter.ts
+│       │   ├── upload.middleware.ts
+│       │   └── validateRequest.ts
+│       │
+│       ├── modules/
+│       │   │
+│       │   ├── activity/
+│       │   │   ├── activity.controller.ts
+│       │   │   ├── activity.route.ts
+│       │   │   └── activity.service.ts
+│       │   │
+│       │   ├── admin/
+│       │   │   ├── admin.controller.ts
+│       │   │   ├── admin.interface.ts
+│       │   │   ├── admin.route.ts
+│       │   │   ├── admin.service.ts
+│       │   │   └── admin.validation.ts
+│       │   │
+│       │   ├── auditLog/
+│       │   │   ├── auditLog.controller.ts
+│       │   │   ├── auditLog.interface.ts
+│       │   │   ├── auditLog.route.ts
+│       │   │   └── auditLog.service.ts
+│       │   │
+│       │   ├── auth/
+│       │   │   ├── auth.controller.ts
+│       │   │   ├── auth.interface.ts
+│       │   │   ├── auth.route.ts
+│       │   │   ├── auth.service.ts
+│       │   │   └── tokenBlacklist.service.ts
+│       │   │
+│       │   ├── bookmark/
+│       │   │   ├── bookmark.controller.ts
+│       │   │   ├── bookmark.route.ts
+│       │   │   └── bookmark.service.ts
+│       │   │
+│       │   ├── category/
+│       │   │   ├── category.controller.ts
+│       │   │   ├── category.route.ts
+│       │   │   ├── category.service.ts
+│       │   │   └── category.validation.ts
+│       │   │
+│       │   ├── comment/
+│       │   │   ├── comment.controller.ts
+│       │   │   ├── comment.interface.ts
+│       │   │   ├── comment.route.ts
+│       │   │   ├── comment.service.ts
+│       │   │   └── comment.validation.ts
+│       │   │
+│       │   ├── health/
+│       │   │   ├── health.controller.ts
+│       │   │   └── health.route.ts
+│       │   │
+│       │   ├── idea/
+│       │   │   ├── idea.controller.ts
+│       │   │   ├── idea.interface.ts
+│       │   │   ├── idea.route.ts
+│       │   │   ├── idea.service.ts
+│       │   │   └── idea.validation.ts
+│       │   │
+│       │   ├── newsletter/
+│       │   │   ├── newsletter.controller.ts
+│       │   │   ├── newsletter.route.ts
+│       │   │   ├── newsletter.service.ts
+│       │   │   └── newsletter.validation.ts
+│       │   │
+│       │   ├── notification/
+│       │   │   ├── notification.controller.ts
+│       │   │   ├── notification.route.ts
+│       │   │   └── notification.service.ts
+│       │   │
+│       │   ├── payment/
+│       │   │   ├── payment.controller.ts
+│       │   │   ├── payment.interface.ts
+│       │   │   ├── payment.route.ts
+│       │   │   ├── payment.service.ts
+│       │   │   └── payment.validation.ts
+│       │   │
+│       │   ├── report/
+│       │   │   ├── report.controller.ts
+│       │   │   ├── report.interface.ts
+│       │   │   ├── report.route.ts
+│       │   │   ├── report.service.ts
+│       │   │   └── report.validation.ts
+│       │   │
+│       │   ├── setting/
+│       │   │   ├── setting.controller.ts
+│       │   │   ├── setting.interface.ts
+│       │   │   ├── setting.route.ts
+│       │   │   ├── setting.service.ts
+│       │   │   └── setting.validation.ts
+│       │   │
+│       │   ├── upload/
+│       │   │   ├── upload.controller.ts
+│       │   │   ├── upload.route.ts
+│       │   │   └── upload.service.ts
+│       │   │
+│       │   └── vote/
+│       │       ├── vote.controller.ts
+│       │       ├── vote.interface.ts
+│       │       ├── vote.route.ts
+│       │       ├── vote.service.ts
+│       │       └── vote.validation.ts
+│       │
+│       ├── routes/
+│       │   └── index.ts
+│       │
+│       ├── shared/
+│       │   ├── catchAsync.ts
+│       │   └── sendResponse.ts
+│       │
+│       ├── templates/
+│       │   ├── googleRedirect.ejs
+│       │   └── otp.ejs
+│       │
+│       └── utils/
+│           ├── auditLogger.ts
+│           ├── cookie.ts
+│           ├── email.ts
+│           ├── jwt.ts
+│           ├── paginationHelper.ts
+│           └── token.ts
+│
+├── prisma/
+│   ├── schema/
+│   │   ├── activity.prisma
+│   │   ├── auditLog.prisma
+│   │   ├── auth.prisma
+│   │   ├── bookmark.prisma
+│   │   ├── category.prisma
+│   │   ├── comment.prisma
+│   │   ├── idea.prisma
+│   │   ├── newsletter.prisma
+│   │   ├── notification.prisma
+│   │   ├── payment.prisma
+│   │   ├── report.prisma
+│   │   ├── setting.prisma
+│   │   └── vote.prisma
+│   │
+│   ├── migrations/
+│   │   └── (all migration files)
+│   │
+│   └── schema.prisma (main entry point)
 │
 ├── .env
 ├── .env.example
 ├── .gitignore
 ├── package.json
+├── pnpm-lock.yaml
 ├── tsconfig.json
 └── README.md
 ```
