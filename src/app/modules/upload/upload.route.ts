@@ -15,7 +15,14 @@ router.post(
   "/ideas/images",
   writeRateLimiter,
   checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
-  ideaImagesUpload,
+  (req, res, next) => {
+    ideaImagesUpload.array("images", 10)(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next();
+    });
+  },
   UploadController.uploadIdeaImages,
 );
 
@@ -31,7 +38,15 @@ router.post(
   "/profile/image",
   writeRateLimiter,
   checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
-  singleImageUpload,
+
+  (req, res, next) => {
+    singleImageUpload.single("image")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next();
+    });
+  },
   UploadController.uploadProfileImage,
 );
 

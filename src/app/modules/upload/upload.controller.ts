@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
@@ -18,8 +19,23 @@ const uploadIdeaImages = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
+  const ideaIdStr =
+    typeof ideaId === "string"
+      ? ideaId
+      : Array.isArray(ideaId)
+        ? ideaId[0]
+        : null;
+
+  if (!ideaIdStr) {
+    return sendResponse(res, {
+      httpStatusCode: status.BAD_REQUEST,
+      success: false,
+      message: "Invalid ideaId provided",
+    });
+  }
+
   const idea = await prisma.idea.findUnique({
-    where: { id: ideaId },
+    where: { id: ideaIdStr },
     select: { authorId: true, images: true },
   });
 
@@ -46,7 +62,7 @@ const uploadIdeaImages = catchAsync(async (req: Request, res: Response) => {
 
   const result = await uploadService.uploadMultipleImages(
     files,
-    `ideas/${ideaId}`,
+    `ideas/${ideaIdStr}`,
   );
 
   // Get existing images
@@ -63,7 +79,7 @@ const uploadIdeaImages = catchAsync(async (req: Request, res: Response) => {
 
   // Update idea with new images
   await prisma.idea.update({
-    where: { id: ideaId },
+    where: { id: ideaIdStr },
     data: {
       images: [...existingImages, ...newImages],
     },
@@ -84,8 +100,29 @@ const uploadIdeaImages = catchAsync(async (req: Request, res: Response) => {
 const deleteIdeaImage = catchAsync(async (req: Request, res: Response) => {
   const { ideaId, publicId } = req.params;
 
+  const ideaIdStr =
+    typeof ideaId === "string"
+      ? ideaId
+      : Array.isArray(ideaId)
+        ? ideaId[0]
+        : "";
+  const publicIdStr =
+    typeof publicId === "string"
+      ? publicId
+      : Array.isArray(publicId)
+        ? publicId[0]
+        : "";
+
+  if (!ideaIdStr || !publicIdStr) {
+    return sendResponse(res, {
+      httpStatusCode: status.BAD_REQUEST,
+      success: false,
+      message: "Invalid ideaId or publicId",
+    });
+  }
+
   const idea = await prisma.idea.findUnique({
-    where: { id: ideaId },
+    where: { id: ideaIdStr },
     select: { authorId: true, images: true },
   });
 
@@ -111,7 +148,7 @@ const deleteIdeaImage = catchAsync(async (req: Request, res: Response) => {
   }
 
   const images = (idea.images as any[]) || [];
-  const imageToDelete = images.find((img) => img.publicId === publicId);
+  const imageToDelete = images.find((img) => img.publicId === publicIdStr);
 
   if (!imageToDelete) {
     return sendResponse(res, {
@@ -122,13 +159,13 @@ const deleteIdeaImage = catchAsync(async (req: Request, res: Response) => {
   }
 
   // Delete from Cloudinary
-  await uploadService.deleteImage(publicId);
+  await uploadService.deleteImage(publicIdStr);
 
   // Remove from database
-  const updatedImages = images.filter((img) => img.publicId !== publicId);
+  const updatedImages = images.filter((img) => img.publicId !== publicIdStr);
 
   await prisma.idea.update({
-    where: { id: ideaId },
+    where: { id: ideaIdStr },
     data: { images: updatedImages },
   });
 

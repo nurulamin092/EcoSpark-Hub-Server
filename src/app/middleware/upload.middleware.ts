@@ -41,7 +41,7 @@ const createCloudinaryStorage = (folderName: string) => {
         folder: `eco-spark/${folderName}`,
         allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
         transformation: [{ width: 1200, height: 800, crop: "limit" }],
-        resource_type: "auto",
+        resource_type: "auto" as const,
       };
     },
   });
