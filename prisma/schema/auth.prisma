@@ -43,6 +43,9 @@ model User {
   reports       Report[]
   admin         Admin?
   member        Member?
+  blogs         Blog[]
+  blogComments  BlogComment[]
+  blogLikes     BlogLike[]
 
   @@map("users")
 }

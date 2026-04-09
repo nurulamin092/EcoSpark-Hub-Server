@@ -1,0 +1,158 @@
+// ==================== Blog Enums ====================
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BlogCommentStatus {
+  PENDING
+  APPROVED
+  SPAM
+  DELETED
+}
+
+// ==================== Blog Models ====================
+
+model Blog {
+  id            String  @id @default(uuid())
+  title         String
+  slug          String  @unique
+  excerpt       String? @db.Text
+  content       String  @db.Text
+  featuredImage String?
+  images        Json?
+  videoUrl      String?
+
+  // SEO fields
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+
+  // Stats
+  viewCount  Int  @default(0)
+  likeCount  Int  @default(0)
+  shareCount Int  @default(0)
+  readTime   Int?
+
+  // Status
+  status     BlogStatus @default(DRAFT)
+  isFeatured Boolean    @default(false)
+  isDeleted  Boolean    @default(false)
+
+  // Relations
+  authorId   String
+  categoryId String?
+
+  // Timestamps
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  author   User            @relation(fields: [authorId], references: [id])
+  category BlogCategory?   @relation(fields: [categoryId], references: [id])
+  comments BlogComment[]
+  likes    BlogLike[]
+  tags     BlogTagOnBlog[]
+
+  @@index([status])
+  @@index([slug])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([createdAt(sort: Desc)])
+  @@index([publishedAt(sort: Desc)])
+  @@index([isFeatured])
+  @@index([status, publishedAt])
+  @@map("blogs")
+}
+
+model BlogCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  description String? @db.Text
+  color       String?
+  icon        String?
+  image       String?
+
+  isActive Boolean @default(true)
+
+  blogs Blog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([slug])
+  @@map("blog_categories")
+}
+
+model BlogTag {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+
+  blogs BlogTagOnBlog[]
+
+  createdAt DateTime @default(now())
+
+  @@map("blog_tags")
+}
+
+model BlogTagOnBlog {
+  blogId String
+  tagId  String
+
+  blog Blog    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag  BlogTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, tagId])
+  @@map("blog_tags_on_blogs")
+}
+
+model BlogComment {
+  id       String  @id @default(uuid())
+  content  String  @db.Text
+  blogId   String
+  userId   String
+  parentId String?
+
+  status BlogCommentStatus @default(PENDING)
+
+  likeCount Int     @default(0)
+  isEdited  Boolean @default(false)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  blog    Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id])
+  parent  BlogComment?  @relation("BlogCommentReplies", fields: [parentId], references: [id])
+  replies BlogComment[] @relation("BlogCommentReplies")
+
+  @@index([blogId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("blog_comments")
+}
+
+model BlogLike {
+  id     String @id @default(uuid())
+  blogId String
+  userId String
+
+  createdAt DateTime @default(now())
+
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([blogId, userId])
+  @@map("blog_likes")
+}
