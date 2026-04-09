@@ -14,6 +14,7 @@ import { ActivityRoutes } from "../modules/activity/activity.route";
 import { AuditLogRoutes } from "../modules/auditLog/auditlog.route";
 import { UploadRoutes } from "../modules/upload/upload.route";
 import { HealthRoutes } from "../modules/health/health.route";
+import { BlogRoutes } from "../modules/blog/blog.route";
 const router = Router();
 
 router.use("/auth", AuthRoutes);
@@ -29,6 +30,7 @@ router.use("/reports", ReportRoutes);
 router.use("/newsletter", NewsletterRoutes);
 router.use("/activities", ActivityRoutes);
 router.use("/audit-logs", AuditLogRoutes);
-router.use('/uploads', UploadRoutes);  
-router.use('/health', HealthRoutes); 
+router.use("/uploads", UploadRoutes);
+router.use("/health", HealthRoutes);
+router.use("/blogs", BlogRoutes);
 export const IndexRoutes: Router = router;
