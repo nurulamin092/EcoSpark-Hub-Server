@@ -30,22 +30,25 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ideas         Idea[]
-  reviewedIdeas Idea[]         @relation("IdeaReviewer")
-  comments      Comment[]
-  votes         Vote[]
-  payments      Payment[]
-  bookmarks     Bookmark[]
-  sessions      Session[]
-  accounts      Account[]
-  notifications Notification[]
-  activities    Activity[]
-  reports       Report[]
-  admin         Admin?
-  member        Member?
-  blogs         Blog[]
-  blogComments  BlogComment[]
-  blogLikes     BlogLike[]
+  ideas                  Idea[]
+  reviewedIdeas          Idea[]                  @relation("IdeaReviewer")
+  comments               Comment[]
+  votes                  Vote[]
+  payments               Payment[]
+  bookmarks              Bookmark[]
+  sessions               Session[]
+  accounts               Account[]
+  notifications          Notification[]
+  activities             Activity[]
+  reports                Report[]
+  admin                  Admin?
+  member                 Member?
+  blogs                  Blog[]
+  blogComments           BlogComment[]
+  blogLikes              BlogLike[]
+  userExperiences        UserExperience[]
+  experienceHelpfulVotes ExperienceHelpfulVote[]
+  experienceLikes        ExperienceLike[]
 
   @@map("users")
 }

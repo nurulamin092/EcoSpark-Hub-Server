@@ -132,4 +132,4 @@ router.post(
   BlogController.createTag,
 );
 
-export const BlogRoutes = router;
+export const BlogRoutes: Router = router;

@@ -1,0 +1,97 @@
+// ==================== User Experiences / Rating System ====================
+
+enum ExperienceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FEATURED
+}
+
+enum ExperienceResultType {
+  COST_SAVING
+  ENERGY_SAVED
+  WASTE_REDUCED
+  CO2_REDUCED
+  TIME_SAVED
+  OTHER
+}
+
+model UserExperience {
+  id String @id @default(uuid())
+
+  ideaId String
+  userId String
+
+  // Rating (1-10 scale)
+  rating Int @db.SmallInt
+
+  // Experience content
+  title   String
+  content String @db.Text
+  images  Json? // Before/after images array
+
+  // Measurable results
+  results Json? // Structured results data
+
+  // Status
+  status ExperienceStatus @default(PENDING)
+
+  // Engagement metrics
+  helpfulCount Int @default(0)
+  likeCount    Int @default(0)
+
+  // Admin fields
+  adminFeedback String?   @db.Text
+  verifiedAt    DateTime?
+  featuredAt    DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  helpfulVotes ExperienceHelpfulVote[]
+  likes        ExperienceLike[]
+
+  @@unique([ideaId, userId]) // One experience per user per idea
+  @@index([ideaId])
+  @@index([userId])
+  @@index([rating])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([helpfulCount(sort: Desc)])
+  @@map("user_experiences")
+}
+
+// Helpful votes (users can mark an experience as helpful)
+model ExperienceHelpfulVote {
+  id           String @id @default(uuid())
+  experienceId String
+  userId       String
+
+  createdAt DateTime @default(now())
+
+  experience UserExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([experienceId, userId])
+  @@map("experience_helpful_votes")
+}
+
+// Likes for experiences
+model ExperienceLike {
+  id           String @id @default(uuid())
+  experienceId String
+  userId       String
+
+  createdAt DateTime @default(now())
+
+  experience UserExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([experienceId, userId])
+  @@map("experience_likes")
+}

@@ -16,6 +16,7 @@ import { UploadRoutes } from "../modules/upload/upload.route";
 import { HealthRoutes } from "../modules/health/health.route";
 import { BlogRoutes } from "../modules/blog/blog.route";
 import { ShareRoutes } from "../modules/share/share.route";
+import { ExperienceRoutes } from "../modules/experience/experience.route";
 const router = Router();
 
 router.use("/auth", AuthRoutes);
@@ -35,4 +36,5 @@ router.use("/uploads", UploadRoutes);
 router.use("/health", HealthRoutes);
 router.use("/blogs", BlogRoutes);
 router.use("/share", ShareRoutes);
+router.use("/experiences", ExperienceRoutes);
 export const IndexRoutes: Router = router;
