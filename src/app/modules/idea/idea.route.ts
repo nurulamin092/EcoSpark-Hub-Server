@@ -176,5 +176,33 @@ router.patch(
   validateRequest(rejectIdeaSchema),
   IdeaController.rejectIdea,
 );
+// ==================== Testimonials Routes ====================
+// Public routes (no authentication required)
+
+// Get testimonials for home page
+router.get("/testimonials", IdeaController.getTestimonials);
+
+// Get single testimonial by ID
+router.get("/testimonials/:id", IdeaController.getTestimonialById);
+
+// Get top voted ideas (alias for testimonials)
+router.get("/top-voted", IdeaController.getTestimonials);
+
+// ==================== Admin Testimonials Routes ====================
+// Admin only routes
+
+// Get testimonials statistics
+router.get(
+  "/admin/testimonials/stats",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  IdeaController.getTestimonialsStats,
+);
+
+// Refresh testimonials cache
+router.post(
+  "/admin/testimonials/refresh-cache",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  IdeaController.refreshTestimonialsCache,
+);
 
 export const IdeaRoutes: Router = router;

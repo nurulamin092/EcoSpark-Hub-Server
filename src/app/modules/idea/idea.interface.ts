@@ -109,3 +109,46 @@ export interface IPaginatedIdeasResponse {
   meta: IPaginationMeta;
   data: IIdeaResponse[];
 }
+
+// ==================== Testimonial Types ====================
+
+export interface ITestimonialAuthor {
+  id: string;
+  name: string;
+  image: string | null;
+  bio: string | null;
+}
+
+export interface ITestimonialCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
+export interface ITestimonial {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  fullDescription: string | null;
+  featuredImage: string | null;
+  upvoteCount: number;
+  downvoteCount: number;
+  netVotes: number;
+  viewCount: number;
+  commentCount: number;
+  createdAt: Date;
+  author: ITestimonialAuthor;
+  category: ITestimonialCategory;
+}
+
+export interface ITestimonialsResponse {
+  testimonials: ITestimonial[];
+  meta: {
+    count: number;
+    limit: number;
+    days?: number;
+    criteria?: string;
+  };
+}

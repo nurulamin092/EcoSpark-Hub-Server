@@ -5,10 +5,11 @@
  */
 
 import { Request, Response } from "express";
-import { IdeaService } from "./idea.service";
+import { ideaCache, IdeaService } from "./idea.service";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import status from "http-status";
+import AppError from "../../errorHelpers/AppError";
 
 /**
  * @description Create a new idea (draft)
@@ -212,6 +213,92 @@ const getIdeasByCategory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// ==================== Testimonials Controllers ====================
+
+/**
+ * Get testimonials for home page
+ * Query params:
+ * - limit: number (default: 3, max: 10)
+ * - days: number (filter by last N days)
+ * - criteria: 'all-time' | 'this-month' | 'this-week'
+ */
+const getTestimonials = catchAsync(async (req: Request, res: Response) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 3;
+  const days = req.query.days ? Number(req.query.days) : undefined;
+  const criteria =
+    (req.query.criteria as "all-time" | "this-month" | "this-week") ||
+    undefined;
+
+  const testimonials = await IdeaService.getTestimonials(limit, days, criteria);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Testimonials fetched successfully",
+    data: {
+      testimonials,
+      meta: {
+        count: testimonials.length,
+        limit,
+        ...(days && { days }),
+        ...(criteria && { criteria }),
+      },
+    },
+  });
+});
+
+/**
+ * Get single testimonial by ID
+ */
+const getTestimonialById = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const testimonial = await IdeaService.getTestimonialById(id as string);
+
+  if (!testimonial) {
+    throw new AppError(status.NOT_FOUND, "Testimonial not found");
+  }
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Testimonial fetched successfully",
+    data: testimonial,
+  });
+});
+
+/**
+ * Get testimonials statistics (for admin dashboard)
+ */
+const getTestimonialsStats = catchAsync(async (req: Request, res: Response) => {
+  const stats = await IdeaService.getTestimonialsStats();
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Testimonials statistics fetched successfully",
+    data: stats,
+  });
+});
+
+/**
+ * Refresh testimonials cache (admin only)
+ */
+const refreshTestimonialsCache = catchAsync(
+  async (req: Request, res: Response) => {
+    // Clear all testimonials related cache
+    ideaCache.invalidate("ideas:testimonials");
+    ideaCache.invalidate("testimonial:");
+    ideaCache.invalidate("testimonials:stats");
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Testimonials cache refreshed successfully",
+    });
+  },
+);
+
 export const IdeaController = {
   createIdea,
   updateIdea,
@@ -225,4 +312,8 @@ export const IdeaController = {
   getFeaturedIdeas,
   getTopVotedIdeas,
   getIdeasByCategory,
+  getTestimonials,
+  getTestimonialById,
+  getTestimonialsStats,
+  refreshTestimonialsCache,
 };

@@ -22,6 +22,9 @@ import {
   // Feature Operations
   getFeaturedIdeas,
   getTopVotedIdeas,
+  getTestimonials,
+  getTestimonialById,
+  getTestimonialsStats,
 } from "./services";
 
 import { calculateTrendingScore } from "./utils/idea.helpers";
@@ -48,6 +51,9 @@ export const IdeaService = {
   // Feature Operations
   getFeaturedIdeas,
   getTopVotedIdeas,
+  getTestimonials,
+  getTestimonialById,
+  getTestimonialsStats,
 
   // Utilities
   calculateTrendingScore,
@@ -69,6 +75,9 @@ export {
   rejectIdea,
   getFeaturedIdeas,
   getTopVotedIdeas,
+  getTestimonials,
+  getTestimonialById,
+  getTestimonialsStats,
   calculateTrendingScore,
   ideaCache,
 };

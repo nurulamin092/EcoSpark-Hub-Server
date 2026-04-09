@@ -24,7 +24,13 @@ export {
 export { approveIdea, rejectIdea } from "./idea.admin.service";
 
 // Feature Operations
-export { getFeaturedIdeas, getTopVotedIdeas } from "./idea.feature.service";
+export {
+  getFeaturedIdeas,
+  getTopVotedIdeas,
+  getTestimonials,
+  getTestimonialById,
+  getTestimonialsStats,
+} from "./idea.feature.service";
 
 // Utilities
 export { calculateTrendingScore } from "../utils/idea.helpers";
