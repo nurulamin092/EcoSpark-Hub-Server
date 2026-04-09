@@ -1,0 +1,43 @@
+// ==================== Share Analytics ====================
+
+enum SharePlatform {
+  FACEBOOK
+  TWITTER
+  LINKEDIN
+  WHATSAPP
+  TELEGRAM
+  EMAIL
+  COPY_LINK
+}
+
+enum ShareEntityType {
+  IDEA
+  BLOG
+}
+
+model ShareAnalytics {
+  id         String          @id @default(uuid())
+  entityType ShareEntityType
+  entityId   String
+  platform   SharePlatform
+  userId     String?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([entityType, entityId, platform])
+  @@index([createdAt])
+  @@map("share_analytics")
+}
+
+// Share counts cache table (for performance)
+model ShareCount {
+  entityType ShareEntityType
+  entityId   String
+  count      Int             @default(0)
+  updatedAt  DateTime        @updatedAt
+
+  @@id([entityType, entityId]) 
+}

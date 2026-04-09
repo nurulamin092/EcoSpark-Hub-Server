@@ -15,6 +15,7 @@ import { AuditLogRoutes } from "../modules/auditLog/auditlog.route";
 import { UploadRoutes } from "../modules/upload/upload.route";
 import { HealthRoutes } from "../modules/health/health.route";
 import { BlogRoutes } from "../modules/blog/blog.route";
+import { ShareRoutes } from "../modules/share/share.route";
 const router = Router();
 
 router.use("/auth", AuthRoutes);
@@ -33,4 +34,5 @@ router.use("/audit-logs", AuditLogRoutes);
 router.use("/uploads", UploadRoutes);
 router.use("/health", HealthRoutes);
 router.use("/blogs", BlogRoutes);
+router.use("/share", ShareRoutes);
 export const IndexRoutes: Router = router;
