@@ -1,7 +1,7 @@
 /**
  * @file idea.helpers.ts
- * @description Helper functions for Idea module
- * @version 1.0.0
+ * @description Type-safe helper functions for Idea module
+ * @version 2.1.0
  */
 
 import { Prisma } from "../../../../generated/prisma/client";
@@ -10,9 +10,6 @@ import slugify from "slugify";
 
 type Decimal = Prisma.Decimal;
 
-/**
- * Convert Decimal to number safely
- */
 export const toNumber = (
   value: number | Decimal | null | undefined,
 ): number | null => {
@@ -24,11 +21,8 @@ export const toNumber = (
   return null;
 };
 
-/**
- * Generate unique URL-friendly slug
- */
 export const generateUniqueSlug = async (title: string): Promise<string> => {
-  const baseSlug = slugify(title, { lower: true, strict: true });
+  const baseSlug = slugify(title, { lower: true, strict: true, trim: true });
   let slug = baseSlug;
   let counter = 1;
 
@@ -39,7 +33,7 @@ export const generateUniqueSlug = async (title: string): Promise<string> => {
     });
     if (!exists) break;
 
-    slug = `${baseSlug}-${Date.now()}-${counter}`;
+    slug = `${baseSlug}-${counter}`;
     counter++;
   }
 
@@ -56,7 +50,7 @@ export const calculateTrendingScore = (idea: {
 }): number => {
   const score = idea.upvoteCount - idea.downvoteCount;
   const order = Math.log10(Math.max(Math.abs(score), 1));
-  const sign = score > 0 ? 1 : score < -0 ? -1 : 0;
+  const sign = score > 0 ? 1 : score < 0 ? -1 : 0;
 
   const seconds =
     (new Date(idea.createdAt).getTime() - new Date(2020, 0, 1).getTime()) /
@@ -65,9 +59,29 @@ export const calculateTrendingScore = (idea: {
   return sign * order + seconds / 45000;
 };
 
-/**
- * Optimized select fields for idea queries
- */
+export interface IImageData {
+  secureUrl?: string;
+  url?: string;
+  publicId?: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  size?: number;
+}
+
+export interface ICategorySelect {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
+export interface IAuthorSelect {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 export const selectIdeaFields = {
   id: true,
   title: true,
@@ -84,10 +98,11 @@ export const selectIdeaFields = {
   status: true,
   createdAt: true,
   updatedAt: true,
-  category: {
-    select: { id: true, name: true, color: true, icon: true },
-  },
-  author: {
-    select: { id: true, name: true, image: true },
-  },
-};
+  category: { select: { id: true, name: true, color: true, icon: true } },
+  author: { select: { id: true, name: true, image: true } },
+} as const;
+
+export type IdeaSelectFields = typeof selectIdeaFields;
+export type IdeaWithRelations = Prisma.IdeaGetPayload<{
+  select: typeof selectIdeaFields;
+}>;

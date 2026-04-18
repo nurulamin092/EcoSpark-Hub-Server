@@ -31,7 +31,3 @@ export {
   getTestimonialById,
   getTestimonialsStats,
 } from "./idea.feature.service";
-
-// Utilities
-export { calculateTrendingScore } from "../utils/idea.helpers";
-export { ideaCache } from "../utils/idea.cache";

@@ -4,22 +4,17 @@
  * @version 4.0.0
  */
 
-// Import all services
 import {
-  // CRUD Operations
   createIdea,
   updateIdea,
   deleteIdea,
   submitIdea,
-  // Query Operations
   getAllIdeas,
   getSingleIdea,
   getUserIdeas,
   getIdeasByCategory,
-  // Admin Operations
   approveIdea,
   rejectIdea,
-  // Feature Operations
   getFeaturedIdeas,
   getTopVotedIdeas,
   getTestimonials,

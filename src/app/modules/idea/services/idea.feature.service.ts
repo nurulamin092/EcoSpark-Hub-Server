@@ -1,21 +1,73 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file idea.feature.service.ts
- * @description Additional features for Idea module
- * @version 1.0.0
+ * @description Additional features for Idea module - NO N+1
+ * @version 2.0.0
  */
 
 import { prisma } from "../../../lib/prisma";
-import { selectIdeaFields } from "../utils/idea.helpers";
+import {
+  selectIdeaFields,
+  IImageData,
+  IdeaWithRelations,
+} from "../utils/idea.helpers";
 import { ideaCache } from "../utils/idea.cache";
 import { IdeaStatus } from "../../../../generated/prisma/enums";
-import { ITestimonial } from "../idea.interface";
-/**
- * Get featured ideas for homepage
- */
-export const getFeaturedIdeas = async (limit: number = 3) => {
+
+export interface ITestimonialAuthor {
+  id: string;
+  name: string;
+  image: string | null;
+  bio: string | null;
+}
+
+export interface ITestimonialCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
+export interface ITestimonial {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  fullDescription: string | null;
+  featuredImage: string | null;
+  upvoteCount: number;
+  downvoteCount: number;
+  netVotes: number;
+  viewCount: number;
+  commentCount: number;
+  createdAt: Date;
+  author: ITestimonialAuthor;
+  category: ITestimonialCategory;
+}
+
+export interface ITestimonialComment {
+  id: string;
+  content: string;
+  createdAt: Date;
+  user: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+}
+
+export interface ITestimonialDetail extends ITestimonial {
+  problem: string;
+  solution: string;
+  bookmarkCount: number;
+  allImages: IImageData[] | null;
+  recentComments: ITestimonialComment[];
+}
+
+export const getFeaturedIdeas = async (
+  limit: number = 3,
+): Promise<IdeaWithRelations[]> => {
   const cacheKey = `ideas:featured:${limit}`;
-  const cached = ideaCache.get(cacheKey);
+  const cached = ideaCache.get<IdeaWithRelations[]>(cacheKey);
   if (cached) return cached;
 
   const ideas = await prisma.idea.findMany({
@@ -31,35 +83,28 @@ export const getFeaturedIdeas = async (limit: number = 3) => {
   });
 
   ideaCache.set(cacheKey, ideas, 5 * 60 * 1000);
-  return ideas;
+  return ideas as IdeaWithRelations[];
 };
-
-/**
- * Get top voted ideas for testimonials (Home page section)
- * @param limit - Number of testimonials to return (default: 3, max: 10)
- * @param days - Optional: only ideas created within last N days
- * @param criteria - 'all-time', 'this-month', 'this-week'
- */
 
 export const getTestimonials = async (
   limit: number = 3,
   days?: number,
   criteria?: "all-time" | "this-month" | "this-week",
 ): Promise<ITestimonial[]> => {
-  // ← টাইপ যোগ করুন
-  // Validate limit
   const validLimit = Math.min(Math.max(limit, 1), 10);
-
   const cacheKey = `ideas:testimonials:${validLimit}:${days || criteria || "all"}`;
-  const cached = ideaCache.get<ITestimonial[]>(cacheKey); // ← টাইপ যোগ করুন
+  const cached = ideaCache.get<ITestimonial[]>(cacheKey);
   if (cached) return cached;
 
-  const where: any = {
+  const where: {
+    status: IdeaStatus;
+    isDeleted: boolean;
+    createdAt?: { gte: Date };
+  } = {
     status: IdeaStatus.APPROVED,
     isDeleted: false,
   };
 
-  // Apply date filters based on criteria or days
   const now = new Date();
 
   if (criteria === "this-week") {
@@ -91,43 +136,19 @@ export const getTestimonials = async (
       commentCount: true,
       images: true,
       createdAt: true,
-      author: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-          bio: true,
-        },
-      },
-      category: {
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          icon: true,
-        },
-      },
+      author: { select: { id: true, name: true, image: true, bio: true } },
+      category: { select: { id: true, name: true, color: true, icon: true } },
     },
   });
 
-  // Transform data for testimonials format with proper typing
   const testimonials: ITestimonial[] = ideas.map((idea) => {
-    // ← টাইপ যোগ করুন
-    // Get first image as featured image
-    let featuredImage = null;
-    if (Array.isArray(idea.images) && idea.images.length > 0) {
-      const firstImage = idea.images[0] as any;
-      featuredImage = firstImage?.secureUrl || null;
-    }
-
-    // Calculate net votes
+    const images = idea.images as IImageData[] | null;
+    const featuredImage = images?.[0]?.secureUrl || images?.[0]?.url || null;
     const netVotes = (idea.upvoteCount || 0) - (idea.downvoteCount || 0);
-
-    // Shorten description for testimonial card
     const shortDescription =
       idea.description && idea.description.length > 150
         ? `${idea.description.substring(0, 150)}...`
-        : idea.description;
+        : idea.description || "";
 
     return {
       id: idea.id,
@@ -152,26 +173,20 @@ export const getTestimonials = async (
     };
   });
 
-  // Cache for 2 minutes
   ideaCache.set(cacheKey, testimonials, 2 * 60 * 1000);
-
   return testimonials;
 };
 
-/**
- * Get single testimonial by idea ID
- */
-export const getTestimonialById = async (ideaId: string) => {
+// FIXED: Single query - NO N+1
+export const getTestimonialById = async (
+  ideaId: string,
+): Promise<ITestimonialDetail | null> => {
   const cacheKey = `testimonial:${ideaId}`;
-  const cached = ideaCache.get(cacheKey);
+  const cached = ideaCache.get<ITestimonialDetail>(cacheKey);
   if (cached) return cached;
 
   const idea = await prisma.idea.findUnique({
-    where: {
-      id: ideaId,
-      status: IdeaStatus.APPROVED,
-      isDeleted: false,
-    },
+    where: { id: ideaId, status: IdeaStatus.APPROVED, isDeleted: false },
     select: {
       id: true,
       title: true,
@@ -188,13 +203,7 @@ export const getTestimonialById = async (ideaId: string) => {
       createdAt: true,
       updatedAt: true,
       author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          bio: true,
-        },
+        select: { id: true, name: true, email: true, image: true, bio: true },
       },
       category: {
         select: {
@@ -205,86 +214,104 @@ export const getTestimonialById = async (ideaId: string) => {
           description: true,
         },
       },
-    },
-  });
-
-  if (!idea) {
-    return null;
-  }
-
-  // Get recent comments for this testimonial
-  const recentComments = await prisma.comment.findMany({
-    where: { ideaId, isDeleted: false },
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: {
+      // ✅ NO N+1 - comments fetched in same query
+      comments: {
+        where: { isDeleted: false },
+        take: 5,
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
-          name: true,
-          image: true,
+          content: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, image: true } },
         },
       },
     },
   });
 
-  const testimonial = {
-    ...idea,
-    netVotes: (idea.upvoteCount || 0) - (idea.downvoteCount || 0),
-    featuredImage:
-      Array.isArray(idea.images) && idea.images.length > 0
-        ? (idea.images[0] as any)?.secureUrl
-        : null,
-    allImages: idea.images,
-    recentComments,
+  if (!idea) return null;
+
+  const images = idea.images as IImageData[] | null;
+  const featuredImage = images?.[0]?.secureUrl || images?.[0]?.url || null;
+  const netVotes = (idea.upvoteCount || 0) - (idea.downvoteCount || 0);
+
+  const result: ITestimonialDetail = {
+    id: idea.id,
+    title: idea.title,
+    slug: idea.slug,
+    description: idea.description,
+    fullDescription: idea.description,
+    featuredImage,
+    upvoteCount: idea.upvoteCount,
+    downvoteCount: idea.downvoteCount,
+    netVotes,
+    viewCount: idea.viewCount,
+    commentCount: idea.commentCount,
+    createdAt: idea.createdAt,
+    problem: idea.problem,
+    solution: idea.solution,
+    bookmarkCount: idea.bookmarkCount,
+    allImages: images,
+    recentComments: idea.comments,
+    author: idea.author,
+    category: idea.category,
   };
 
-  ideaCache.set(cacheKey, testimonial, 5 * 60 * 1000);
-  return testimonial;
+  ideaCache.set(cacheKey, result, 5 * 60 * 1000);
+  return result;
 };
 
-/**
- * Get top voted ideas (alias for backward compatibility)
- */
-export const getTopVotedIdeas = async (limit: number = 3) => {
+export const getTopVotedIdeas = async (
+  limit: number = 3,
+): Promise<ITestimonial[]> => {
   return getTestimonials(limit);
 };
 
-/**
- * Get testimonials statistics for dashboard
- */
-export const getTestimonialsStats = async () => {
+export interface ITestimonialStats {
+  totalTestimonials: number;
+  averageUpvotes: number;
+  highestUpvotes: number;
+  newThisMonth: number;
+}
+
+export const getTestimonialsStats = async (): Promise<ITestimonialStats> => {
   const cacheKey = "testimonials:stats";
-  const cached = ideaCache.get(cacheKey);
+  const cached = ideaCache.get<ITestimonialStats>(cacheKey);
   if (cached) return cached;
 
-  const stats = await prisma.$transaction([
-    prisma.idea.count({
-      where: {
-        status: IdeaStatus.APPROVED,
-        isDeleted: false,
-        upvoteCount: { gte: 10 },
-      },
-    }),
-    prisma.idea.aggregate({
-      where: { status: IdeaStatus.APPROVED, isDeleted: false },
-      _avg: { upvoteCount: true },
-      _max: { upvoteCount: true },
-    }),
-    prisma.idea.count({
-      where: {
-        status: IdeaStatus.APPROVED,
-        isDeleted: false,
-        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      },
-    }),
-  ]);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const result = {
-    totalTestimonials: stats[0],
-    averageUpvotes: Math.round(stats[1]._avg.upvoteCount || 0),
-    highestUpvotes: stats[1]._max.upvoteCount || 0,
-    newThisMonth: stats[2],
+  const [totalTestimonials, avgUpvotesResult, maxUpvotesResult, newThisMonth] =
+    await Promise.all([
+      prisma.idea.count({
+        where: {
+          status: IdeaStatus.APPROVED,
+          isDeleted: false,
+          upvoteCount: { gte: 10 },
+        },
+      }),
+      prisma.idea.aggregate({
+        where: { status: IdeaStatus.APPROVED, isDeleted: false },
+        _avg: { upvoteCount: true },
+      }),
+      prisma.idea.aggregate({
+        where: { status: IdeaStatus.APPROVED, isDeleted: false },
+        _max: { upvoteCount: true },
+      }),
+      prisma.idea.count({
+        where: {
+          status: IdeaStatus.APPROVED,
+          isDeleted: false,
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      }),
+    ]);
+
+  const result: ITestimonialStats = {
+    totalTestimonials,
+    averageUpvotes: Math.round(avgUpvotesResult._avg.upvoteCount || 0),
+    highestUpvotes: maxUpvotesResult._max.upvoteCount || 0,
+    newThisMonth,
   };
 
   ideaCache.set(cacheKey, result, 10 * 60 * 1000);

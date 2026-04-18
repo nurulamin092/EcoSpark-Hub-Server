@@ -1,10 +1,8 @@
 /**
  * @file idea.cache.ts
- * @description Performance caching for Idea module
- * @version 1.0.0
+ * @description In-memory caching for Idea module (Redis-ready structure)
+ * @version 2.0.0
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface CacheEntry<T> {
   data: T;
@@ -12,15 +10,15 @@ interface CacheEntry<T> {
 }
 
 export class IdeaCache {
-  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private hits = 0;
   private misses = 0;
 
-  public readonly TTL = {
-    LIST: 30 * 1000, // 30 seconds for lists
-    SINGLE: 60 * 1000, // 60 seconds for single ideas
-    FEATURED: 5 * 60 * 1000, // 5 minutes for featured
-    TOP_VOTED: 2 * 60 * 1000, // 2 minutes for top voted
+  readonly TTL = {
+    LIST: 30 * 1000,
+    SINGLE: 60 * 1000,
+    FEATURED: 5 * 60 * 1000,
+    TOP_VOTED: 2 * 60 * 1000,
   };
 
   get<T>(key: string): T | null {
@@ -29,19 +27,17 @@ export class IdeaCache {
       this.misses++;
       return null;
     }
-
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       this.misses++;
       return null;
     }
-
     this.hits++;
     return entry.data as T;
   }
 
   set<T>(key: string, data: T, ttl: number): void {
-    if (this.cache.size > 1000) {
+    if (this.cache.size > 2000) {
       this.cleanup();
     }
     this.cache.set(key, { data, expiresAt: Date.now() + ttl });

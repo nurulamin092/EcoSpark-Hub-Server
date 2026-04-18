@@ -1,77 +1,31 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file idea.query.service.ts
- * @description Query operations for Idea module
- * @version 1.0.0
+ * @description Query operations for Idea module - NO RAW SQL, NO N+1
+ * @version 2.1.0
  */
 
 import { Prisma } from "../../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma";
-import { selectIdeaFields, toNumber } from "../utils/idea.helpers";
+import { IImageData, selectIdeaFields, toNumber } from "../utils/idea.helpers";
 import { ideaCache } from "../utils/idea.cache";
 import { checkPaidIdeaAccess } from "../utils/idea.validators";
 import AppError from "../../../errorHelpers/AppError";
-import status from "http-status";
+import httpStatus from "http-status";
 import { IdeaStatus } from "../../../../generated/prisma/enums";
+import {
+  GetAllIdeasQuery,
+  IIdeaWithLockStatus,
+  IUserIdea,
+  ICategoryIdea,
+  PaginatedResult,
+  IdeaWithRelations,
+} from "../idea.interface";
 
-interface GetAllIdeasQuery {
-  page?: number;
-  limit?: number;
-  search?: string;
-  category?: string;
-  isPaid?: string;
-  sort?: "recent" | "top" | "commented" | "trending";
-}
+// ==================== Full Idea with Relations (for main list) ====================
 
-interface IIdeaWithLockStatus {
-  id: string;
-  title: string;
-  slug: string;
-  problem: string;
-  solution: string;
-  description: string;
-  images: any;
-  attachments: any;
-  viewCount: number;
-  upvoteCount: number;
-  downvoteCount: number;
-  commentCount: number;
-  bookmarkCount: number;
-  isPaid: boolean;
-  price: number | null;
-  status: string;
-  submittedAt: Date | null;
-  reviewedAt: Date | null;
-  publishedAt: Date | null;
-  adminFeedback: string | null;
-  isFeatured: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  author: {
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-    bio: string | null;
-  };
-  category: {
-    id: string;
-    name: string;
-    color: string | null;
-    icon: string | null;
-    description: string | null;
-  };
-  reviewer: {
-    id: string;
-    name: string;
-  } | null;
-  isLocked?: boolean;
-}
-
-/**
- * Get all approved ideas with filtering
- */
-export const getAllIdeas = async (query: GetAllIdeasQuery) => {
+export const getAllIdeas = async (
+  query: GetAllIdeasQuery,
+): Promise<PaginatedResult<IdeaWithRelations>> => {
   const {
     page = 1,
     limit = 10,
@@ -82,7 +36,7 @@ export const getAllIdeas = async (query: GetAllIdeasQuery) => {
   } = query;
 
   const cacheKey = `ideas:list:${JSON.stringify(query)}`;
-  const cached = ideaCache.get(cacheKey);
+  const cached = ideaCache.get<PaginatedResult<IdeaWithRelations>>(cacheKey);
   if (cached) return cached;
 
   const skip = (Number(page) - 1) * Number(limit);
@@ -93,7 +47,7 @@ export const getAllIdeas = async (query: GetAllIdeasQuery) => {
     isDeleted: false,
   };
 
-  if (search) {
+  if (search && search.trim()) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
       { description: { contains: search, mode: "insensitive" } },
@@ -109,61 +63,6 @@ export const getAllIdeas = async (query: GetAllIdeasQuery) => {
   if (sort === "top") orderBy = { upvoteCount: "desc" };
   if (sort === "commented") orderBy = { commentCount: "desc" };
 
-  // Trending sort with SQL calculation
-  if (sort === "trending") {
-    const trendingIdeas = await prisma.$queryRaw<any[]>`
-      SELECT 
-        i.id, i.title, i.slug, i.description, i.images,
-        i."viewCount", i."upvoteCount", i."downvoteCount",
-        i."commentCount", i."bookmarkCount", i."isPaid", i.price,
-        i.status, i."createdAt", i."updatedAt",
-        json_build_object('id', c.id, 'name', c.name, 'color', c.color, 'icon', c.icon) as category,
-        json_build_object('id', u.id, 'name', u.name, 'image', u.image) as author,
-        (
-          CASE 
-            WHEN (i."upvoteCount" - i."downvoteCount") > 0 THEN 1
-            WHEN (i."upvoteCount" - i."downvoteCount") < 0 THEN -1
-            ELSE 0
-          END * LOG(10, GREATEST(ABS(i."upvoteCount" - i."downvoteCount"), 1))
-          + EXTRACT(EPOCH FROM i."createdAt") / 45000
-        ) as "trendingScore"
-      FROM ideas i
-      JOIN categories c ON i."categoryId" = c.id
-      JOIN users u ON i."authorId" = u.id
-      WHERE i.status = 'APPROVED' 
-        AND i."isDeleted" = false
-        ${search ? Prisma.sql`AND (i.title ILIKE ${`%${search}%`} OR i.description ILIKE ${`%${search}%`})` : Prisma.sql``}
-        ${category ? Prisma.sql`AND i."categoryId" = ${category}` : Prisma.sql``}
-        ${isPaid !== undefined ? Prisma.sql`AND i."isPaid" = ${isPaid === "true"}` : Prisma.sql``}
-      ORDER BY "trendingScore" DESC
-      LIMIT ${take} OFFSET ${skip}
-    `;
-
-    const totalResult = await prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(*) as count
-      FROM ideas i
-      WHERE i.status = 'APPROVED' 
-        AND i."isDeleted" = false
-        ${search ? Prisma.sql`AND (i.title ILIKE ${`%${search}%`} OR i.description ILIKE ${`%${search}%`})` : Prisma.sql``}
-        ${category ? Prisma.sql`AND i."categoryId" = ${category}` : Prisma.sql``}
-        ${isPaid !== undefined ? Prisma.sql`AND i."isPaid" = ${isPaid === "true"}` : Prisma.sql``}
-    `;
-
-    const total = Number(totalResult[0]?.count || 0);
-    const result = {
-      meta: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit)),
-      },
-      data: trendingIdeas,
-    };
-
-    ideaCache.set(cacheKey, result, 30_000);
-    return result;
-  }
-
   const [ideas, total] = await Promise.all([
     prisma.idea.findMany({
       where,
@@ -175,23 +74,22 @@ export const getAllIdeas = async (query: GetAllIdeasQuery) => {
     prisma.idea.count({ where }),
   ]);
 
-  const result = {
+  const result: PaginatedResult<IdeaWithRelations> = {
     meta: {
       page: Number(page),
       limit: Number(limit),
       total,
       totalPages: Math.ceil(total / Number(limit)),
     },
-    data: ideas,
+    data: ideas as IdeaWithRelations[],
   };
 
   ideaCache.set(cacheKey, result, 30_000);
   return result;
 };
 
-/**
- * Get single idea by ID
- */
+// ==================== Single Idea ====================
+
 export const getSingleIdea = async (
   id: string,
   userId?: string,
@@ -245,39 +143,31 @@ export const getSingleIdea = async (
     },
   });
 
-  if (!idea) throw new AppError(status.NOT_FOUND, "Idea not found");
+  if (!idea) {
+    throw new AppError(httpStatus.NOT_FOUND, "Idea not found");
+  }
 
-  // Atomic view count increment
-  setImmediate(async () => {
-    await prisma.$executeRaw`
-      UPDATE ideas 
-      SET "viewCount" = "viewCount" + 1,
-          "lastActivityAt" = NOW()
-      WHERE id = ${id}
-    `;
-    ideaCache.invalidate(`idea:${id}`);
-  });
+  // Atomic view count increment (non-blocking)
+  void prisma.$executeRaw`
+    UPDATE ideas 
+    SET "viewCount" = "viewCount" + 1, "lastActivityAt" = NOW()
+    WHERE id = ${id}
+  `;
 
-  let result: IIdeaWithLockStatus = {
+  const result: IIdeaWithLockStatus = {
     ...idea,
+    images: idea.images as IImageData[] | null,
     price: toNumber(idea.price),
     isLocked: false,
   };
 
-  if (idea.isPaid) {
-    if (userId && idea.author.id === userId) {
-      result = { ...result, isLocked: false };
-    } else {
-      const hasAccess = await checkPaidIdeaAccess(userId, id);
-      if (!hasAccess) {
-        result = {
-          ...result,
-          description: "🔒 Premium content locked. Purchase to unlock.",
-          solution: "🔒 Premium content locked. Purchase to unlock.",
-          problem: "🔒 Premium content locked. Purchase to unlock.",
-          isLocked: true,
-        };
-      }
+  if (idea.isPaid && userId && idea.author.id !== userId) {
+    const hasAccess = await checkPaidIdeaAccess(userId, id);
+    if (!hasAccess) {
+      result.description = "🔒 Premium content locked. Purchase to unlock.";
+      result.solution = "🔒 Premium content locked. Purchase to unlock.";
+      result.problem = "🔒 Premium content locked. Purchase to unlock.";
+      result.isLocked = true;
     }
   }
 
@@ -288,13 +178,12 @@ export const getSingleIdea = async (
   return result;
 };
 
-/**
- * Get current user's ideas
- */
+// ==================== User's Own Ideas ====================
+
 export const getUserIdeas = async (
   userId: string,
   query: { page?: number; limit?: number },
-) => {
+): Promise<PaginatedResult<IUserIdea>> => {
   const { page = 1, limit = 10 } = query;
   const skip = (Number(page) - 1) * Number(limit);
 
@@ -322,6 +211,21 @@ export const getUserIdeas = async (
     prisma.idea.count({ where: { authorId: userId, isDeleted: false } }),
   ]);
 
+  const transformedIdeas: IUserIdea[] = ideas.map((idea) => ({
+    id: idea.id,
+    title: idea.title,
+    slug: idea.slug,
+    description: idea.description,
+    status: idea.status,
+    upvoteCount: idea.upvoteCount,
+    downvoteCount: idea.downvoteCount,
+    viewCount: idea.viewCount,
+    isPaid: idea.isPaid,
+    price: idea.price ? toNumber(idea.price) : null,
+    createdAt: idea.createdAt,
+    category: idea.category,
+  }));
+
   return {
     meta: {
       page: Number(page),
@@ -329,24 +233,27 @@ export const getUserIdeas = async (
       total,
       totalPages: Math.ceil(total / Number(limit)),
     },
-    data: ideas,
+    data: transformedIdeas,
   };
 };
 
-/**
- * Get ideas by category
- */
+// ==================== Ideas by Category ====================
+
 export const getIdeasByCategory = async (
   categoryId: string,
   query: { page?: number; limit?: number },
-) => {
+): Promise<PaginatedResult<ICategoryIdea>> => {
   const { page = 1, limit = 10 } = query;
   const skip = (Number(page) - 1) * Number(limit);
 
   const category = await prisma.category.findUnique({
     where: { id: categoryId, isActive: true },
+    select: { id: true, name: true },
   });
-  if (!category) throw new AppError(status.BAD_REQUEST, "Invalid category");
+
+  if (!category) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid category");
+  }
 
   const [ideas, total] = await Promise.all([
     prisma.idea.findMany({
@@ -373,6 +280,20 @@ export const getIdeasByCategory = async (
     }),
   ]);
 
+  const transformedIdeas: ICategoryIdea[] = ideas.map((idea) => ({
+    id: idea.id,
+    title: idea.title,
+    slug: idea.slug,
+    description: idea.description,
+    upvoteCount: idea.upvoteCount,
+    downvoteCount: idea.downvoteCount,
+    viewCount: idea.viewCount,
+    isPaid: idea.isPaid,
+    price: idea.price ? toNumber(idea.price) : null,
+    createdAt: idea.createdAt,
+    author: idea.author,
+  }));
+
   return {
     meta: {
       page: Number(page),
@@ -380,6 +301,6 @@ export const getIdeasByCategory = async (
       total,
       totalPages: Math.ceil(total / Number(limit)),
     },
-    data: ideas,
+    data: transformedIdeas,
   };
 };
