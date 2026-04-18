@@ -1,6 +1,6 @@
 enum ReportStatus {
   PENDING
-  REVIEWEDy
+  REVIEWED
   DISMISSED
   ACTION_TAKEN
 }

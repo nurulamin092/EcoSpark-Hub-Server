@@ -35,6 +35,7 @@ eco-spark-hub-server/
 │       │   ├── notFound.ts
 │       │   ├── rateLimiter.ts
 │       │   ├── upload.middleware.ts
+│       │   ├── userRateLimiter.ts
 │       │   └── validateRequest.ts
 │       │
 │       ├── modules/
@@ -49,7 +50,13 @@ eco-spark-hub-server/
 │       │   │   ├── admin.interface.ts
 │       │   │   ├── admin.route.ts
 │       │   │   ├── admin.service.ts
-│       │   │   └── admin.validation.ts
+│       │   │   ├── admin.validation.ts
+│       │   │   └── services/
+│       │   │       ├── admin.management.service.ts
+│       │   │       ├── bulk.operations.service.ts
+│       │   │       ├── dashboard.service.ts
+│       │   │       ├── export.service.ts
+│       │   │       └── member.management.service.ts
 │       │   │
 │       │   ├── auditLog/
 │       │   │   ├── auditLog.controller.ts
@@ -63,6 +70,13 @@ eco-spark-hub-server/
 │       │   │   ├── auth.route.ts
 │       │   │   ├── auth.service.ts
 │       │   │   └── tokenBlacklist.service.ts
+│       │   │
+│       │   ├── blog/
+│       │   │   ├── blog.controller.ts
+│       │   │   ├── blog.interface.ts
+│       │   │   ├── blog.route.ts
+│       │   │   ├── blog.service.ts
+│       │   │   └── blog.validation.ts
 │       │   │
 │       │   ├── bookmark/
 │       │   │   ├── bookmark.controller.ts
@@ -82,6 +96,13 @@ eco-spark-hub-server/
 │       │   │   ├── comment.service.ts
 │       │   │   └── comment.validation.ts
 │       │   │
+│       │   ├── experience/
+│       │   │   ├── experience.controller.ts
+│       │   │   ├── experience.interface.ts
+│       │   │   ├── experience.route.ts
+│       │   │   ├── experience.service.ts
+│       │   │   └── experience.validation.ts
+│       │   │
 │       │   ├── health/
 │       │   │   ├── health.controller.ts
 │       │   │   └── health.route.ts
@@ -91,7 +112,17 @@ eco-spark-hub-server/
 │       │   │   ├── idea.interface.ts
 │       │   │   ├── idea.route.ts
 │       │   │   ├── idea.service.ts
-│       │   │   └── idea.validation.ts
+│       │   │   ├── idea.validation.ts
+│       │   │   ├── services/
+│       │   │   │   ├── index.ts
+│       │   │   │   ├── idea.admin.service.ts
+│       │   │   │   ├── idea.crud.service.ts
+│       │   │   │   ├── idea.feature.service.ts
+│       │   │   │   └── idea.query.service.ts
+│       │   │   └── utils/
+│       │   │       ├── idea.cache.ts
+│       │   │       ├── idea.helpers.ts
+│       │   │       └── idea.validators.ts
 │       │   │
 │       │   ├── newsletter/
 │       │   │   ├── newsletter.controller.ts
@@ -124,6 +155,12 @@ eco-spark-hub-server/
 │       │   │   ├── setting.route.ts
 │       │   │   ├── setting.service.ts
 │       │   │   └── setting.validation.ts
+│       │   │
+│       │   ├── share/
+│       │   │   ├── share.controller.ts
+│       │   │   ├── share.interface.ts
+│       │   │   ├── share.route.ts
+│       │   │   └── share.service.ts
 │       │   │
 │       │   ├── upload/
 │       │   │   ├── upload.controller.ts
@@ -161,21 +198,27 @@ eco-spark-hub-server/
 │   │   ├── activity.prisma
 │   │   ├── auditLog.prisma
 │   │   ├── auth.prisma
+│   │   ├── blog.prisma
 │   │   ├── bookmark.prisma
 │   │   ├── category.prisma
 │   │   ├── comment.prisma
+│   │   ├── experience.prisma
 │   │   ├── idea.prisma
 │   │   ├── newsletter.prisma
 │   │   ├── notification.prisma
 │   │   ├── payment.prisma
 │   │   ├── report.prisma
 │   │   ├── setting.prisma
+│   │   ├── share.prisma
 │   │   └── vote.prisma
 │   │
 │   ├── migrations/
 │   │   └── (all migration files)
 │   │
-│   └── schema.prisma (main entry point)
+│   └── schema.prisma
+│
+├── src/types/
+│   └── express-rate-limit.d.ts
 │
 ├── .env
 ├── .env.example
