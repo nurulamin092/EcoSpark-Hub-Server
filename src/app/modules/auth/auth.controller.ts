@@ -61,6 +61,10 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 });
 const getMe = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
+
+  if (!user) {
+    throw new AppError(status.UNAUTHORIZED, "User not authenticated");
+  }
   console.log({ user });
   const result = await AuthService.getMe(user);
   sendResponse(res, {

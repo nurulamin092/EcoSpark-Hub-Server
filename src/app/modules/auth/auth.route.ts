@@ -7,7 +7,11 @@ import { authRateLimiter } from "../../middleware/rateLimiter";
 const router = Router();
 router.post("/register", authRateLimiter, AuthController.registerMember);
 router.post("/login", authRateLimiter, AuthController.loginUser);
-router.get("/me", AuthController.getMe);
+router.get(
+  "/me",
+  checkAuth(Role.SUPER_ADMIN, Role.ADMIN, Role.MODERATOR, Role.MEMBER),
+  AuthController.getMe,
+);
 router.post("/refresh-token", AuthController.getNewToken);
 router.post(
   "/change-password",

@@ -125,18 +125,40 @@ const loginUser = async (payload: ILoginUserPayload) => {
 };
 
 const getMe = async (user: IRequestUser) => {
-  const isUserExists = await prisma.user.findUnique({
+  const userData = await prisma.user.findUnique({
     where: {
       id: user.userId,
     },
     include: {
       member: true,
+      admin: true,
     },
   });
 
-  if (!isUserExists) {
+  if (!userData) {
     throw new AppError(status.NOT_FOUND, "User not found");
   }
+
+  if (userData.isDeleted) {
+    throw new AppError(status.NOT_FOUND, "User not found");
+  }
+  return {
+    id: userData.id,
+    name: userData.name,
+    email: userData.email,
+    role: userData.role,
+    status: userData.status,
+    emailVerified: userData.emailVerified,
+    image: userData.image,
+    bio: userData.bio,
+    phone: userData.phone,
+    address: userData.address,
+    needPasswordChange: userData.needPasswordChange,
+    createdAt: userData.createdAt,
+    updatedAt: userData.updatedAt,
+    member: userData.member,
+    admin: userData.admin,
+  };
 };
 
 const getNewToken = async (refreshToken: string, sessionToken: string) => {
