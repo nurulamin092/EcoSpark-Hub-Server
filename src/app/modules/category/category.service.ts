@@ -33,6 +33,18 @@ const getAllCategories = async () => {
   });
 };
 
+const getCategoryById = async (id: string) => {
+  const category = await prisma.category.findUnique({
+    where: { id, isActive: true },
+  });
+
+  if (!category) {
+    throw new AppError(status.NOT_FOUND, "Category not found");
+  }
+
+  return category;
+};
+
 const updateCategory = async (id: string, payload: any) => {
   const category = await prisma.category.findUnique({ where: { id } });
 
@@ -76,6 +88,7 @@ const deleteCategory = async (id: string) => {
 export const CategoryService = {
   createCategory,
   getAllCategories,
+  getCategoryById,
   updateCategory,
   deleteCategory,
 };
