@@ -30,7 +30,6 @@ router.get(
 
 router.get("/featured", IdeaController.getFeaturedIdeas);
 
-// ✅ Keep ONLY one top-voted route
 router.get("/top-voted", IdeaController.getTopVotedIdeas);
 
 router.get(
@@ -79,7 +78,6 @@ router.patch(
   IdeaController.submitIdea,
 );
 
-// ⚠️ Keep dynamic route AFTER specific ones
 router.get(
   "/:id",
   checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),

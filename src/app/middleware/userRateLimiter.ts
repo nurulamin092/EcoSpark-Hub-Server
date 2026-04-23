@@ -1,171 +1,111 @@
-/**
- * @file userRateLimiter.ts
- * @description User-based rate limiting middleware
- * @version 2.0.0
- */
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// ============ src/app/middleware/userRateLimiter.ts ============
 import rateLimit, { RateLimitRequestHandler } from "express-rate-limit";
 import { Request, Response } from "express";
-import Redis from "ioredis";
 
-// Extend Express Request type to include rateLimit property
-declare module "express-serve-static-core" {
-  interface Request {
-    rateLimit?: {
-      limit: number;
-      current: number;
-      remaining: number;
-      resetTime: Date;
-    };
-  }
-}
-
-// Redis connection (optional - falls back to memory store if not configured)
-let redisClient: Redis | null = null;
-let useRedis = false;
-
-try {
-  if (process.env.REDIS_URL) {
-    redisClient = new Redis(process.env.REDIS_URL);
-    useRedis = true;
-    console.log("✅ Redis connected for rate limiting");
-  }
-} catch {
-  // ✅ FIXED: Used '_err' instead of 'error' to avoid unused variable warning
-  console.warn("⚠️ Redis not configured, using memory store for rate limiting");
-}
-
-// Custom key generator that uses user ID if available, otherwise IP
 const keyGenerator = (req: Request): string => {
-  // If user is authenticated, use user ID
-  if (req.user?.userId) {
-    return `user:${req.user.userId}`;
-  }
-  // Otherwise use IP address
-  const ip = req.ip || req.socket.remoteAddress || "unknown";
-  return `ip:${ip}`;
+  // Use express-rate-limit's recommended approach
+  const ip =
+    req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+  const ipString = Array.isArray(ip) ? ip[0] : ip;
+  return `rl:${ipString}`;
 };
 
-// Custom handler for rate limit exceeded
 const rateLimitHandler = (req: Request, res: Response) => {
-  const isAuthenticated = !!req.user?.userId;
-
-  // ✅ FIXED: Safe access to rateLimit property
-  let retryAfter = 60;
-  if (req.rateLimit?.resetTime) {
-    retryAfter = Math.ceil(
-      (req.rateLimit.resetTime.getTime() - Date.now()) / 1000,
-    );
-  }
-
   res.status(429).json({
     success: false,
-    message: isAuthenticated
-      ? "You have exceeded your request limit. Please try again later."
-      : "Too many requests from this IP. Please try again later.",
-    retryAfter: Math.max(1, retryAfter),
-    limit: req.rateLimit?.limit || 0,
-    remaining: 0,
-    resetTime:
-      req.rateLimit?.resetTime || new Date(Date.now() + retryAfter * 1000),
+    message: "Too many requests, please try again later.",
   });
 };
 
-// ==================== Rate Limiter Configurations ====================
-
-// General API rate limiter (all users)
+// General API rate limiter (authenticated users)
 export const userRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // 100 requests per window (using 'limit' instead of 'max' for newer version)
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false, // Count all requests
+  handler: rateLimitHandler,
 });
 
 // Strict limiter for authenticated users (write operations)
 export const strictUserRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 30, // 30 requests per minute
+  windowMs: 60 * 1000,
+  limit: 30,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
 // Very strict limiter for sensitive operations
 export const sensitiveOperationLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 5, // 5 requests per minute
+  windowMs: 60 * 1000,
+  limit: 5,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
-// Login/Register specific limiter (stricter)
+// Login/Register specific limiter
 export const authUserRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 10, // 10 attempts per window
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
-  skipFailedRequests: false,
+  handler: rateLimitHandler,
 });
 
-// Per-endpoint custom limiters
+// Create idea limiter
 export const createIdeaRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 5, // 5 ideas per minute
+  windowMs: 60 * 1000,
+  limit: 5,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
+// Comment rate limiter
 export const commentRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 20, // 20 comments per minute
+  windowMs: 60 * 1000,
+  limit: 20,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
+// Vote rate limiter
 export const voteRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 30, // 30 votes per minute
+  windowMs: 60 * 1000,
+  limit: 30,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
+// Payment rate limiter
 export const paymentRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 3, // 3 payment attempts per minute
+  windowMs: 60 * 1000,
+  limit: 3,
   keyGenerator,
-  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
-// Admin specific limiter (higher limits)
+// Admin specific limiter
 export const adminRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  limit: 200, // 200 requests per minute for admins
-  keyGenerator: (req: Request): string => {
-    // Admins get higher limits
-    if (req.user?.userId) {
-      return `admin:${req.user.userId}`;
-    }
-    return keyGenerator(req);
-  },
-  handler: rateLimitHandler,
+  windowMs: 60 * 1000,
+  limit: 200,
+  keyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler,
 });
 
 // Dynamic rate limiter based on user role
@@ -177,24 +117,39 @@ export const dynamicRateLimiter = (options: {
 }): RateLimitRequestHandler => {
   return rateLimit({
     windowMs: options.windowMs || 60 * 1000,
-    limit: (req: Request): number => {
-      // Higher limits for authenticated users
-      if (req.user?.userId) {
-        // Even higher for admins
-        if (req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
-          return options.adminMax || options.defaultMax * 2;
-        }
+    limit: (req: Request) => {
+      const user = (req as any).user;
+      if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
+        return options.adminMax || options.defaultMax * 2;
+      }
+      if (user?.userId) {
         return options.memberMax || options.defaultMax;
       }
-      // Lower limits for unauthenticated users
       return Math.floor(options.defaultMax / 2);
     },
     keyGenerator,
-    handler: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
+    handler: rateLimitHandler,
   });
 };
 
-// Export Redis client for use in other parts of the app
-export { redisClient, useRedis };
+export let redisClient: any = null;
+export let useRedis = false;
+
+(async () => {
+  try {
+    if (process.env.REDIS_URL) {
+      const Redis = await import("ioredis");
+      redisClient = new Redis.default(process.env.REDIS_URL);
+      useRedis = true;
+      console.log("Redis connected for rate limiting");
+    }
+  } catch {
+    console.warn(
+      "⚠️ Redis not configured, using memory store for rate limiting",
+    );
+  }
+})();
+
+export { rateLimitHandler };

@@ -1,9 +1,4 @@
-/**
- * @file idea.validation.ts
- * @description Zod validation schemas for Idea module
- * @version 3.0.0
- */
-
+// ============ src/app/modules/idea/idea.validation.ts ============
 import z from "zod";
 
 /**
@@ -50,6 +45,7 @@ export const createIdeaZodSchema = z
 
 /**
  * Validation schema for updating an existing idea
+
  */
 export const updateIdeaZodSchema = z
   .object({
@@ -83,6 +79,7 @@ export const updateIdeaZodSchema = z
   })
   .refine(
     (data) => {
+      // Only validate price if isPaid is being set to true
       if (data.isPaid === true && (!data.price || data.price <= 0)) {
         return false;
       }
@@ -95,15 +92,18 @@ export const updateIdeaZodSchema = z
   );
 
 /**
- * Validation schema for query parameters
+ * Validation schema for query parameters (GET /ideas)
  */
 export const ideaQueryZodSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(10),
   search: z.string().optional(),
-  category: z.string().uuid().optional(),
+  category: z.string().uuid("Invalid category ID format").optional(),
+  categoryId: z.string().uuid("Invalid category ID format").optional(),
   isPaid: z.enum(["true", "false"]).optional(),
   sort: z.enum(["recent", "top", "commented", "trending"]).default("recent"),
+  sortBy: z.enum(["createdAt", "upvoteCount", "commentCount"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
   status: z.enum(["DRAFT", "UNDER_REVIEW", "APPROVED", "REJECTED"]).optional(),
 });
 
