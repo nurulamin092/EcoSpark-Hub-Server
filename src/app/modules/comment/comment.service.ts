@@ -11,6 +11,15 @@ import httpStatus from "http-status";
 import { NotificationService } from "../notification/notification.service";
 import { ActivityType, Role } from "../../../generated/prisma/enums";
 import { AuditLogService } from "../auditLog/auditLog.service";
+import {
+  BaseComment,
+  CommentTreeNode,
+  CommentUser,
+  CommentWithUser,
+  CreateCommentMeta,
+  DeleteCommentMeta,
+  ReplyData,
+} from "./comment.interface";
 
 // ==================== Constants ====================
 const MAX_DEPTH = 5;
@@ -19,63 +28,7 @@ const PREVIEW_LENGTH = 100;
 
 // ==================== Types ====================
 
-interface CommentUser {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
-interface BaseComment {
-  id: string;
-  content: string;
-  userId: string;
-  ideaId: string;
-  parentId: string | null;
-  path: string;
-  depth: number;
-  isDeleted: boolean;
-  isEdited: boolean;
-  editCount: number;
-  likes: number;
-  createdAt: Date;
-  updatedAt: Date;
-  user: CommentUser;
-}
-
-interface CommentWithReplies extends BaseComment {
-  replies: CommentWithReplies[];
-}
-
 // Alias for backward compatibility
-type CommentTreeNode = CommentWithReplies;
-type CommentWithUser = BaseComment;
-
-interface CreateCommentMeta {
-  ip?: string;
-  userAgent?: string;
-}
-
-interface DeleteCommentMeta {
-  ip?: string;
-  userAgent?: string;
-}
-
-interface ReplyData {
-  id: string;
-  content: string;
-  userId: string;
-  ideaId: string;
-  parentId: string | null;
-  path: string;
-  depth: number;
-  isDeleted: boolean;
-  isEdited: boolean;
-  editCount: number;
-  likes: number;
-  createdAt: Date;
-  updatedAt: Date;
-  user: CommentUser;
-}
 
 // ==================== Helper Functions ====================
 

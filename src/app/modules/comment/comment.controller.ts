@@ -1,3 +1,4 @@
+// ============ src/app/modules/comment/comment.controller.ts ============
 import { Request, Response } from "express";
 import { CommentService } from "./comment.service";
 import { catchAsync } from "../../shared/catchAsync";
@@ -24,7 +25,7 @@ const createComment = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getComments = catchAsync(async (req: Request, res: Response) => {
-  const { ideaId } = req.query;
+  const { ideaId, page, limit } = req.query;
 
   if (!ideaId) {
     return sendResponse(res, {
@@ -34,7 +35,15 @@ const getComments = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  const result = await CommentService.getCommentsByIdea(ideaId as string);
+  // ✅ Parse pagination parameters
+  const pageNum = page ? parseInt(page as string, 10) : 1;
+  const limitNum = limit ? parseInt(limit as string, 10) : 50;
+
+  const result = await CommentService.getCommentsByIdea(
+    ideaId as string,
+    pageNum,
+    limitNum,
+  );
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -85,14 +94,13 @@ const deleteComment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// New: Hard delete for admins
+// ✅ Fixed: hardDeleteComment - only 4 arguments
 const hardDeleteComment = catchAsync(async (req: Request, res: Response) => {
   const { reason } = req.body;
 
   const result = await CommentService.hardDeleteComment(
     req.user.userId,
     req.params.id as string,
-    req.user.role,
     reason,
     { ip: req.ip, userAgent: req.headers["user-agent"] },
   );
