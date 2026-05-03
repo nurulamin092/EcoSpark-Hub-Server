@@ -15,6 +15,8 @@ import {
   getIdeasByCategory,
   approveIdea,
   rejectIdea,
+  getPendingIdeasForAdmin,
+  getAllIdeasForAdmin,
   getFeaturedIdeas,
   getTopVotedIdeas,
   getTestimonials,
@@ -43,6 +45,8 @@ export const IdeaService = {
   approveIdea,
   rejectIdea,
 
+  getAllIdeasForAdmin,
+  getPendingIdeasForAdmin,
   // Feature Operations
   getFeaturedIdeas,
   getTopVotedIdeas,
@@ -68,6 +72,8 @@ export {
   getIdeasByCategory,
   approveIdea,
   rejectIdea,
+  getAllIdeasForAdmin,
+  getPendingIdeasForAdmin,
   getFeaturedIdeas,
   getTopVotedIdeas,
   getTestimonials,

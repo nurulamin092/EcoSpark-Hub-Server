@@ -25,7 +25,7 @@ import {
   bulkDeactivateMembers as bulkDeactivateMembersService,
   // Dashboard
   getFullDashboard as getFullDashboardService,
-  getAllIdeasForAdmin as getAllIdeasForAdminService,
+
   // Export
   exportUsers as exportUsersService,
   exportIdeas as exportIdeasService,
@@ -54,8 +54,8 @@ export const AdminService = {
   bulkDeactivateMembers: bulkDeactivateMembersService,
 
   // Dashboard
+
   getFullDashboard: getFullDashboardService,
-  getAllIdeasForAdmin: getAllIdeasForAdminService,
 
   // Export
   exportUsers: exportUsersService,
@@ -79,7 +79,6 @@ export {
   bulkActivateMembersService as bulkActivateMembers,
   bulkDeactivateMembersService as bulkDeactivateMembers,
   getFullDashboardService as getFullDashboard,
-  getAllIdeasForAdminService as getAllIdeasForAdmin,
   exportUsersService as exportUsers,
   exportIdeasService as exportIdeas,
 };

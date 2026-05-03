@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * @file dashboard.service.ts
  * @description Dashboard statistics for Admin module
@@ -214,45 +214,7 @@ export const getSystemHealth = async () => {
   return { activeUsers24h, newIdeas24h, activeSessions, timestamp: now };
 };
 
-/**
- * Get all ideas for admin (with filters)
- */
-export const getAllIdeasForAdmin = async (query: any) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
-  const skip = (page - 1) * limit;
-  const status = query.status as IdeaStatus | undefined;
-  const search = query.search || "";
 
-  const where: any = { isDeleted: false };
-
-  if (status) where.status = status;
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { description: { contains: search, mode: "insensitive" } },
-    ];
-  }
-
-  const [ideas, total] = await Promise.all([
-    prisma.idea.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-        category: { select: { id: true, name: true } },
-      },
-    }),
-    prisma.idea.count({ where }),
-  ]);
-
-  return {
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    data: ideas,
-  };
-};
 
 /**
  * Get full dashboard data

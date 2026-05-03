@@ -11,7 +11,9 @@ import AppError from "../errorHelpers/AppError";
 export const checkAuth =
   (...authRoles: Role[]) =>
   async (req: Request, _res: Response, next: NextFunction) => {
+
     try {
+      
       const accessToken = CookieUtils.getCookie(req, "accessToken");
 
       if (!accessToken) {
@@ -52,6 +54,9 @@ export const checkAuth =
         email: user.email,
       };
 
+      if (authRoles.length && !authRoles.includes(user.role)) {
+        throw new AppError(status.FORBIDDEN, "Forbidden");
+      }
       next();
     } catch (error) {
       next(error);

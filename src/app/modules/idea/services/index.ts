@@ -21,7 +21,12 @@ export {
 } from "./idea.query.service";
 
 // Admin Operations
-export { approveIdea, rejectIdea } from "./idea.admin.service";
+export {
+  approveIdea,
+  rejectIdea,
+  getPendingIdeasForAdmin,
+  getAllIdeasForAdmin,
+} from "./idea.admin.service";
 
 // Feature Operations
 export {

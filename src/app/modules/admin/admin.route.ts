@@ -14,17 +14,20 @@ import {
 
 const router = Router();
 
-// ==================== Admin Management Routes ====================
-router.get(
-  "/",
-  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-  AdminController.getAllAdmins,
-);
+// ==================== Dashboard Routes ====================
 
 router.get(
   "/dashboard",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   AdminController.getDashboard,
+);
+
+// ==================== Admin Management Routes ====================
+
+router.get(
+  "/",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  AdminController.getAllAdmins,
 );
 
 // ==================== Member Management Routes ====================
@@ -94,14 +97,6 @@ router.post(
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(bulkActionZodSchema),
   AdminController.bulkDeactivateMembers,
-);
-
-// ==================== Idea Moderation Routes ====================
-
-router.get(
-  "/ideas/all",
-  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-  AdminController.getAllIdeasForAdmin,
 );
 
 // ==================== Export Routes ====================

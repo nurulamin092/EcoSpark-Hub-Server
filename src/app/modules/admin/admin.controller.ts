@@ -193,7 +193,7 @@ const bulkDeactivateMembers = catchAsync(
   },
 );
 
-// ==================== Dashboard ====================
+//* ==================== Dashboard ====================
 
 const getDashboard = catchAsync(async (_req: Request, res: Response) => {
   const result = await AdminService.getFullDashboard();
@@ -202,17 +202,6 @@ const getDashboard = catchAsync(async (_req: Request, res: Response) => {
     httpStatusCode: status.OK,
     success: true,
     message: "Dashboard fetched successfully",
-    data: result,
-  });
-});
-
-const getAllIdeasForAdmin = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdminService.getAllIdeasForAdmin(req.query);
-
-  sendResponse(res, {
-    httpStatusCode: status.OK,
-    success: true,
-    message: "Ideas fetched successfully",
     data: result,
   });
 });
@@ -292,9 +281,8 @@ export const AdminController = {
   bulkActivateMembers,
   bulkDeactivateMembers,
 
-  // Dashboard
+  // Dashboard & Idea Moderation
   getDashboard,
-  getAllIdeasForAdmin,
 
   // Export
   exportUsers,

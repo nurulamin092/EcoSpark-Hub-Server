@@ -299,14 +299,39 @@ const refreshTestimonialsCache = catchAsync(
   },
 );
 
+//* ====================  Idea Moderation ====================
+const getPendingIdeas = catchAsync(async (req: Request, res: Response) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const result = await IdeaService.getPendingIdeasForAdmin(limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Pending ideas fetched successfully",
+    data: result,
+  });
+});
+
+const getAllIdeasForAdmin = catchAsync(async (req: Request, res: Response) => {
+  const result = await IdeaService.getAllIdeasForAdmin(req.query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Ideas fetched successfully",
+    data: result,
+  });
+});
+
 export const IdeaController = {
   createIdea,
   updateIdea,
+  getAllIdeasForAdmin,
+  approveIdea,
+  getPendingIdeas,
   deleteIdea,
   submitIdea,
   getAllIdeas,
   getSingleIdea,
-  approveIdea,
   rejectIdea,
   getMyIdeas,
   getFeaturedIdeas,

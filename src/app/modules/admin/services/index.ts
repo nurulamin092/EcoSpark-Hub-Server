@@ -31,7 +31,9 @@ export {
 } from "./bulk.operations.service";
 
 // Dashboard
-export { getFullDashboard, getAllIdeasForAdmin } from "./dashboard.service";
+export { getFullDashboard } from "./dashboard.service";
+
+// Idea Moderation Services
 
 // Export
 export { exportUsers, exportIdeas } from "./export.service";

@@ -1,7 +1,7 @@
 /**
  * @file idea.route.ts
  * @description Route definitions for Idea module
- * @version 3.1.0 (Fixed duplicates + ordering issues)
+ * @version 4.0.0 (Production Grade - Fixed ordering)
  */
 
 import { Router } from "express";
@@ -21,17 +21,13 @@ import { writeRateLimiter } from "../../middleware/rateLimiter";
 const router = Router();
 
 // ==================== Public Routes ====================
-
 router.get(
   "/",
   validateRequest(ideaQueryZodSchema),
   IdeaController.getAllIdeas,
 );
-
 router.get("/featured", IdeaController.getFeaturedIdeas);
-
 router.get("/top-voted", IdeaController.getTopVotedIdeas);
-
 router.get(
   "/category/:categoryId",
   validateRequest(ideaQueryZodSchema),
@@ -39,12 +35,27 @@ router.get(
 );
 
 // ==================== Testimonials Routes ====================
-
 router.get("/testimonials", IdeaController.getTestimonials);
 router.get("/testimonials/:id", IdeaController.getTestimonialById);
 
-// ==================== Protected Routes ====================
+// ==================== Admin Routes (MUST BE BEFORE dynamic :id) ====================
+//  CRITICAL: These specific routes must come BEFORE the dynamic /:id route
 
+// Get pending ideas (admin only)
+router.get(
+  "/pending",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  IdeaController.getPendingIdeas,
+);
+
+// Get all ideas with filters (admin only)
+router.get(
+  "/all",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  IdeaController.getAllIdeasForAdmin,
+);
+
+// ==================== Protected Routes (User) ====================
 router.post(
   "/",
   writeRateLimiter,
@@ -58,6 +69,9 @@ router.get(
   checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
   IdeaController.getMyIdeas,
 );
+
+// ==================== Update/Delete Routes (with :id) ====================
+// These come BEFORE the final dynamic route
 
 router.patch(
   "/:id",
@@ -78,21 +92,14 @@ router.patch(
   IdeaController.submitIdea,
 );
 
-router.get(
-  "/:id",
-  checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
-  checkPaymentAccess,
-  IdeaController.getSingleIdea,
-);
-
-// ==================== Admin Routes ====================
-
+//  Approve route - specific pattern (admin only)
 router.patch(
   "/:id/approve",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   IdeaController.approveIdea,
 );
 
+//  Reject route - specific pattern (admin only)
 router.patch(
   "/:id/reject",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
@@ -100,8 +107,16 @@ router.patch(
   IdeaController.rejectIdea,
 );
 
-// ==================== Admin Testimonials ====================
+// ==================== Dynamic Route (ALWAYS LAST) ====================
+//  This must be the LAST route - it matches any :id
+router.get(
+  "/:id",
+  checkAuth(Role.MEMBER, Role.ADMIN, Role.SUPER_ADMIN),
+  checkPaymentAccess,
+  IdeaController.getSingleIdea,
+);
 
+// ==================== Admin Testimonials ====================
 router.get(
   "/admin/testimonials/stats",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
