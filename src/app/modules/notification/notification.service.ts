@@ -5,6 +5,8 @@ import { NotificationType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
 
+export { NotificationType };
+
 const createNotification = async (
   userId: string,
   type: NotificationType,

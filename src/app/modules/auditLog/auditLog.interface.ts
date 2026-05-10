@@ -9,4 +9,15 @@ export interface ICreateAuditLogPayload {
   newValue?: any;
   ipAddress?: string;
   userAgent?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface IAuditLogFilters {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  entity?: string;
+  action?: string;
+  fromDate?: Date;
+  toDate?: Date;
 }

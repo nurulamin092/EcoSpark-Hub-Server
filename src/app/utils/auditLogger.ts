@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request } from "express";
-import { AuditLogService } from "../modules/auditLog/auditLog.service";
+import { AuditLogService } from "../routes/modules/auditLog/auditLog.service";
 
 interface LogParams {
   req?: Request;

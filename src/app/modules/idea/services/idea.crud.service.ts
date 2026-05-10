@@ -18,7 +18,10 @@ import {
 import { ideaCache } from "../utils/idea.cache";
 import AppError from "../../../errorHelpers/AppError";
 import status from "http-status";
-import { ActivityType, IdeaStatus } from "../../../../generated/prisma/enums";
+import {
+  ActivityType,
+  IdeaStatus,
+} from "../../../../generated/prisma/enums";
 import { ActivityService } from "../../activity/activity.service";
 
 /**

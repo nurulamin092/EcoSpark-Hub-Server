@@ -1,4 +1,3 @@
-
 /**
  * @file dashboard.service.ts
  * @description Dashboard statistics for Admin module
@@ -213,8 +212,6 @@ export const getSystemHealth = async () => {
 
   return { activeUsers24h, newIdeas24h, activeSessions, timestamp: now };
 };
-
-
 
 /**
  * Get full dashboard data

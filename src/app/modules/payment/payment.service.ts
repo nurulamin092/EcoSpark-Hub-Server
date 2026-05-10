@@ -9,11 +9,7 @@ import {
   NotificationType,
 } from "../../../generated/prisma/enums";
 import { NotificationService } from "../notification/notification.service";
-
-interface CheckoutSessionResult {
-  url: string;
-  sessionId: string;
-}
+import { CheckoutSessionResult } from "./payment.interface";
 
 const createCheckoutSession = async (
   userId: string,

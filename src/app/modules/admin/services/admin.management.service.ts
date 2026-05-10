@@ -11,14 +11,15 @@ import { prisma } from "../../../lib/prisma";
 import { IRequestUser } from "../../../interface/requestUser.interface";
 import { IUpdateAdminPayload } from "../admin.interface";
 import { AuditLogService } from "../../auditLog/auditLog.service";
-import { pagination } from "../../../utils/paginationHelper";
+
 import { buildAdminWhereClause } from "../utils/admin.helpers";
+import { paginationHelper } from "../../../utils/paginationHelper";
 
 /**
  * Get all admins with pagination
  */
 export const getAllAdmins = async (query: any) => {
-  const { page, limit, skip } = pagination(query);
+  const { page, limit, skip } = paginationHelper(query.page, query.limit); // Changed this line
   const where = buildAdminWhereClause(query);
 
   const [data, total] = await Promise.all([
@@ -37,7 +38,6 @@ export const getAllAdmins = async (query: any) => {
     data,
   };
 };
-
 /**
  * Get single admin by ID
  */

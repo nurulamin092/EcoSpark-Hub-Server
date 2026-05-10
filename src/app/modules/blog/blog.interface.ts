@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { BlogStatus } from "../../../generated/prisma/enums";
+import { BlogStatus } from "../../../../generated/prisma/enums";
 
 export interface ICreateBlogPayload {
   title: string;

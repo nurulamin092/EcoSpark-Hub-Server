@@ -1,3 +1,5 @@
+// src/app/modules/auditLog/auditLog.service.ts
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { prisma } from "../../lib/prisma";
@@ -23,18 +25,26 @@ const createAuditLog = async (
   try {
     const client = tx ?? prisma;
 
+    // Merge metadata into the data field or store separately
+    const auditData: any = {
+      userId: payload.userId ?? null,
+      userEmail: payload.userEmail ?? null,
+      action: payload.action,
+      entity: payload.entity,
+      entityId: payload.entityId,
+      oldValue: toJson(payload.oldValue),
+      newValue: toJson(payload.newValue),
+      ipAddress: payload.ipAddress ?? null,
+      userAgent: payload.userAgent ?? null,
+    };
+
+    // If metadata exists, add it to the data field
+    if (payload.metadata) {
+      auditData.data = toJson(payload.metadata);
+    }
+
     return await client.auditLog.create({
-      data: {
-        userId: payload.userId ?? null,
-        userEmail: payload.userEmail ?? null,
-        action: payload.action,
-        entity: payload.entity,
-        entityId: payload.entityId,
-        oldValue: toJson(payload.oldValue),
-        newValue: toJson(payload.newValue),
-        ipAddress: payload.ipAddress ?? null,
-        userAgent: payload.userAgent ?? null,
-      },
+      data: auditData,
     });
   } catch (error) {
     console.error("AuditLog Error:", error);
