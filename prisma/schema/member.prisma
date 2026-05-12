@@ -19,3 +19,24 @@ model Member {
   @@index([isDeleted], name: "idx_member_isDeleted")
   @@map("members")
 }
+
+// model Member {
+//   id     String @id @default(uuid())
+//   userId String @unique
+//   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Member Specific Fields
+//   memberSince      DateTime @default(now())
+//   totalPoints      Int      @default(0)
+//   subscriptionTier String   @default("free")
+//   purchasedIdeas   String[] // Store purchased idea IDs
+
+//   isDeleted Boolean   @default(false)
+//   deletedAt DateTime?
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+
+//   @@index([userId])
+//   @@index([isDeleted])
+//   @@map("members")
+// }

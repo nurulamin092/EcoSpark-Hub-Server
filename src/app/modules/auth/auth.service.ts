@@ -290,13 +290,47 @@ const changePassword = async (
 };
 
 const logoutUser = async (sessionToken: string) => {
-  const result = await auth.api.signOut({
-    headers: new Headers({
-      Authorization: `Bearer ${sessionToken}`,
-    }),
+  if (!sessionToken) {
+    throw new AppError(status.BAD_REQUEST, "Session token is required");
+  }
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
   });
+  if (!session) {
+    console.log("Session not found, user already logged out");
+    return { success: true, message: "Already logged out" };
+  }
+  try {
+    const result = await auth.api.signOut({
+      headers: new Headers({
+        Authorization: `Bearer ${sessionToken}`,
+      }),
+    });
 
-  return result;
+    if (!result.success) {
+      console.warn("SignOut API returned unsuccessful result:", result);
+    }
+    await prisma.session.deleteMany({
+      where: { token: sessionToken },
+    });
+    console.log(`User ${session.userId} logged out successfully`);
+    return {
+      success: true,
+      message: "Logged out successfully",
+      userId: session.userId,
+      signOutResult: result.success,
+    };
+  } catch (error) {
+    console.error("Logout error:", error);
+    await prisma.session.deleteMany({
+      where: { token: sessionToken },
+    });
+    throw new AppError(
+      status.INTERNAL_SERVER_ERROR,
+      "Failed to logout properly",
+    );
+  }
 };
 
 const verifyEmail = async (email: string, otp: string) => {

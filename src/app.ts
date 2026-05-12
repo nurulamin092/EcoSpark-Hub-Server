@@ -64,6 +64,7 @@ app.use(
 );
 
 // ==================== Authentication Routes ====================
+
 app.use("/api/auth", toNodeHandler(auth));
 
 // ==================== Body Parsers ====================

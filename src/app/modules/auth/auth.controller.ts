@@ -6,7 +6,7 @@ import status from "http-status";
 import ms, { StringValue } from "ms";
 import { tokenUtils } from "../../utils/token";
 import AppError from "../../errorHelpers/AppError";
-import { CookieUtils } from "../../utils/cookie";
+
 import { envVars } from "../../config/env";
 import { auth } from "../../lib/auth";
 
@@ -126,33 +126,94 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
+  console.log(" [DEBUG] logoutUser called");
+
   const betterAuthSessionToken = req.cookies["better-auth.session_token"];
-  const result = await AuthService.logoutUser(betterAuthSessionToken);
-  CookieUtils.clearCookie(res, "accessToken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
+
+  if (betterAuthSessionToken) {
+    try {
+      await AuthService.logoutUser(betterAuthSessionToken);
+      console.log(" [DEBUG] Better-Auth session killed");
+    } catch (error) {
+      console.error(" [DEBUG] Logout service error:", error);
+    }
+  }
+
+  // CRITICAL: Clear cookies using response header method
+  const cookiesToClear = [
+    "accessToken",
+    "refreshToken",
+    "better-auth.session_token",
+    "token",
+    "userRole",
+    "role",
+  ];
+
+  const expireDate = new Date(0).toUTCString();
+
+  // Method 1: Set multiple Set-Cookie headers (most reliable)
+  cookiesToClear.forEach((cookieName) => {
+    // Clear with path /
+    res.setHeader(
+      "Set-Cookie",
+      `${cookieName}=; expires=${expireDate}; path=/; HttpOnly; SameSite=Lax`,
+    );
+
+    // Clear with path /api
+    res.setHeader(
+      "Set-Cookie",
+      `${cookieName}=; expires=${expireDate}; path=/api; HttpOnly; SameSite=Lax`,
+    );
+
+    // Clear with path /admin
+    res.setHeader(
+      "Set-Cookie",
+      `${cookieName}=; expires=${expireDate}; path=/admin; HttpOnly; SameSite=Lax`,
+    );
+
+    // Clear with path /dashboard
+    res.setHeader(
+      "Set-Cookie",
+      `${cookieName}=; expires=${expireDate}; path=/dashboard; HttpOnly; SameSite=Lax`,
+    );
+
+    // Clear without HttpOnly for client-readable cookies
+    if (cookieName === "userRole" || cookieName === "role") {
+      res.setHeader(
+        "Set-Cookie",
+        `${cookieName}=; expires=${expireDate}; path=/; SameSite=Lax`,
+      );
+    }
   });
-  CookieUtils.clearCookie(res, "refreshToken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
+
+  cookiesToClear.forEach((cookieName) => {
+    res.clearCookie(cookieName, {
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
   });
-  CookieUtils.clearCookie(res, "better-auth.session_token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
+
+  // Set response headers to prevent caching
+  res.setHeader(
+    "Cache-Control",
+    "no-cache, no-store, must-revalidate, private",
+  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
+  console.log(" [DEBUG] logoutUser completed - cookies cleared via headers");
 
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
     message: "User logged out successfully",
-    data: result,
+    data: { success: true },
   });
 });
-
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
   await AuthService.verifyEmail(email, otp);

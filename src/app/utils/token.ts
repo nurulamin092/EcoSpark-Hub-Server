@@ -1,57 +1,78 @@
 import { JwtPayload, SignOptions } from "jsonwebtoken";
 import { envVars } from "../config/env";
 import { jwtUtils } from "./jwt";
-import { CookieUtils } from "./cookie";
 import { Response } from "express";
 
 const getAccessToken = (payload: JwtPayload) => {
-  const accessToken = jwtUtils.createToken(
-    payload,
-    envVars.ACCESS_TOKEN_SECRET,
-    { expiresIn: envVars.ACCESS_TOKEN_EXPIRES_IN } as SignOptions,
-  );
-  return accessToken;
+  return jwtUtils.createToken(payload, envVars.ACCESS_TOKEN_SECRET, {
+    expiresIn: envVars.ACCESS_TOKEN_EXPIRES_IN,
+  } as SignOptions);
 };
 
 const getRefreshToken = (payload: JwtPayload) => {
-  const refreshToken = jwtUtils.createToken(
-    payload,
-    envVars.REFRESH_TOKEN_SECRET,
-    { expiresIn: envVars.REFRESH_TOKEN_EXPIRES_IN } as SignOptions,
-  );
-  return refreshToken;
+  return jwtUtils.createToken(payload, envVars.REFRESH_TOKEN_SECRET, {
+    expiresIn: envVars.REFRESH_TOKEN_EXPIRES_IN,
+  } as SignOptions);
 };
 
+// Fix cookie setting for localhost
 const setAccessTokenCookie = (res: Response, token: string) => {
-  CookieUtils.setCookie(res, "accessToken", token, {
+  res.cookie("accessToken", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: false, // false for localhost
+    sameSite: "lax",
     path: "/",
-
-    maxAge: 60 * 60 * 60 * 24,
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
   });
 };
 
 const setRefreshTokenCookie = (res: Response, token: string) => {
-  CookieUtils.setCookie(res, "refreshToken", token, {
+  res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: false,
+    sameSite: "lax",
     path: "/",
-
-    maxAge: 60 * 60 * 60 * 24 * 7,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
 
 const setBetterAuthSessionCookie = (res: Response, token: string) => {
-  CookieUtils.setCookie(res, "better-auth.session_token", token, {
+  res.cookie("better-auth.session_token", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: false,
+    sameSite: "lax",
     path: "/",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+};
 
-    maxAge: 60 * 60 * 60 * 24,
+const setUserRoleCookie = (res: Response, role: string) => {
+  res.cookie("userRole", role, {
+    httpOnly: false, // Client needs to read this
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+};
+
+const clearAllTokens = (res: Response) => {
+  const cookiesToClear = [
+    "accessToken",
+    "refreshToken",
+    "better-auth.session_token",
+    "token",
+    "userRole",
+    "role",
+  ];
+
+  cookiesToClear.forEach((cookieName) => {
+    res.clearCookie(cookieName, {
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
   });
 };
 
@@ -61,4 +82,6 @@ export const tokenUtils = {
   setAccessTokenCookie,
   setRefreshTokenCookie,
   setBetterAuthSessionCookie,
+  setUserRoleCookie,
+  clearAllTokens,
 };
