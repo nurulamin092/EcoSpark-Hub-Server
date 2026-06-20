@@ -104,10 +104,66 @@ const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllPaymentsForAdmin = catchAsync(
+  async (req: Request, res: Response) => {
+    const { status: statusFilter, page = 1, limit = 10 } = req.query;
+
+    const result = await PaymentService.getAllPaymentsForAdmin({
+      status: statusFilter as string | undefined,
+      page: Number(page),
+      limit: Number(limit),
+    });
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "All payments fetched successfully",
+      data: result,
+    });
+  },
+);
+
+const approvePayment = catchAsync(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+
+  const result = await PaymentService.approvePayment(
+    paymentId as string,
+    req.user.userId,
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Payment approved successfully",
+    data: result,
+  });
+});
+
+const rejectPayment = catchAsync(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+  const { reason } = req.body;
+
+  const result = await PaymentService.rejectPayment(
+    paymentId as string,
+    req.user.userId,
+    reason || "Payment rejected by admin",
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Payment rejected successfully",
+    data: result,
+  });
+});
+
 export const PaymentController = {
   createPayment,
   getMyPayments,
   webhook,
   verifyAccess,
   getPaymentStatus,
+  getAllPaymentsForAdmin,
+  approvePayment,
+  rejectPayment,
 };

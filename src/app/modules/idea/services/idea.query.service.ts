@@ -90,15 +90,121 @@ export const getAllIdeas = async (
 
 // ==================== Single Idea ====================
 
+// export const getSingleIdea = async (
+//   id: string,
+//   userId?: string,
+// ): Promise<IIdeaWithLockStatus> => {
+//   const cacheKey = `idea:${id}:${userId || "guest"}`;
+
+//   if (!userId) {
+//     const cached = ideaCache.get<IIdeaWithLockStatus>(cacheKey);
+//     if (cached) return cached;
+//   }
+
+//   const idea = await prisma.idea.findUnique({
+//     where: { id, isDeleted: false },
+//     select: {
+//       id: true,
+//       title: true,
+//       slug: true,
+//       problem: true,
+//       solution: true,
+//       description: true,
+//       images: true,
+//       attachments: true,
+//       viewCount: true,
+//       upvoteCount: true,
+//       downvoteCount: true,
+//       commentCount: true,
+//       bookmarkCount: true,
+//       isPaid: true,
+//       price: true,
+//       status: true,
+//       submittedAt: true,
+//       reviewedAt: true,
+//       publishedAt: true,
+//       adminFeedback: true,
+//       isFeatured: true,
+//       createdAt: true,
+//       updatedAt: true,
+//       author: {
+//         select: { id: true, name: true, email: true, image: true, bio: true },
+//       },
+//       category: {
+//         select: {
+//           id: true,
+//           name: true,
+//           color: true,
+//           icon: true,
+//           description: true,
+//         },
+//       },
+//       reviewer: { select: { id: true, name: true } },
+//     },
+//   });
+
+//   if (!idea) {
+//     throw new AppError(httpStatus.NOT_FOUND, "Idea not found");
+//   }
+
+//   // Atomic view count increment (non-blocking)
+//   void prisma.$executeRaw`
+//     UPDATE ideas
+//     SET "viewCount" = "viewCount" + 1, "lastActivityAt" = NOW()
+//     WHERE id = ${id}
+//   `;
+
+//   const result: IIdeaWithLockStatus = {
+//     ...idea,
+//     images: idea.images as IImageData[] | null,
+//     price: toNumber(idea.price),
+//     isLocked: false,
+//   };
+
+//   //  Handle paid idea locking
+//   if (idea.isPaid) {
+//     // Case 1: User not logged in → lock and prompt login
+//     if (!userId) {
+//       result.isLocked = true;
+//       result.description =
+//         " Premium content locked. Please login to purchase and unlock.";
+//       result.solution = " Premium content locked. Please login to purchase.";
+//       result.problem = " Premium content locked. Please login to purchase.";
+//     }
+//     // Case 2: User logged in but not the author → check payment access
+//     else if (userId !== idea.author.id) {
+//       const hasAccess = await checkPaidIdeaAccess(userId, id);
+//       if (!hasAccess) {
+//         result.isLocked = true;
+//         result.description = " Premium content locked. Purchase to unlock.";
+//         result.solution = " Premium content locked. Purchase to unlock.";
+//         result.problem = " Premium content locked. Purchase to unlock.";
+//       }
+//     }
+//     // Case 3: Author → no lock (isLocked remains false)
+//   }
+
+//   //  Cache the result for unauthenticated users
+//   if (!userId) {
+//     ideaCache.set(cacheKey, result, 60_000);
+//   }
+
+//   return result;
+// };
+
 export const getSingleIdea = async (
   id: string,
   userId?: string,
 ): Promise<IIdeaWithLockStatus> => {
+  const startTime = Date.now();
   const cacheKey = `idea:${id}:${userId || "guest"}`;
 
   if (!userId) {
     const cached = ideaCache.get<IIdeaWithLockStatus>(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      console.log(`⚡ Cache hit for ${cacheKey}`);
+      return cached;
+    }
   }
 
   const idea = await prisma.idea.findUnique({
@@ -147,7 +253,6 @@ export const getSingleIdea = async (
     throw new AppError(httpStatus.NOT_FOUND, "Idea not found");
   }
 
-  // Atomic view count increment (non-blocking)
   void prisma.$executeRaw`
     UPDATE ideas 
     SET "viewCount" = "viewCount" + 1, "lastActivityAt" = NOW()
@@ -161,23 +266,42 @@ export const getSingleIdea = async (
     isLocked: false,
   };
 
-  if (idea.isPaid && userId && idea.author.id !== userId) {
-    const hasAccess = await checkPaidIdeaAccess(userId, id);
-    if (!hasAccess) {
-      result.description = "🔒 Premium content locked. Purchase to unlock.";
-      result.solution = "🔒 Premium content locked. Purchase to unlock.";
-      result.problem = "🔒 Premium content locked. Purchase to unlock.";
+  if (idea.isPaid) {
+    if (!userId) {
       result.isLocked = true;
+      result.description =
+        "🔒 Premium content locked. Please login to purchase and unlock.";
+      result.solution = "🔒 Premium content locked. Please login to purchase.";
+      result.problem = "🔒 Premium content locked. Please login to purchase.";
+      console.log(`🔐 Locked (no user) for idea ${id}`);
+    } else if (userId !== idea.author.id) {
+      console.log(`🔍 Checking payment access for user ${userId}, idea ${id}`);
+      const hasAccess = await checkPaidIdeaAccess(userId, id);
+      console.log(`🔍 Access result: ${hasAccess}`);
+
+      if (!hasAccess) {
+        result.isLocked = true;
+        result.description = "🔒 Premium content locked. Purchase to unlock.";
+        result.solution = "🔒 Premium content locked. Purchase to unlock.";
+        result.problem = "🔒 Premium content locked. Purchase to unlock.";
+        console.log(`🔐 Locked (no payment) for user ${userId}, idea ${id}`);
+      } else {
+        console.log(`✅ Access granted for user ${userId}, idea ${id}`);
+      }
+    } else {
+      console.log(`✅ Author access for user ${userId}, idea ${id}`);
     }
   }
 
   if (!userId) {
-    ideaCache.set(cacheKey, result, 60_000);
+    ideaCache.set(cacheKey, result, 60_000); // 60 সেকেন্ড
   }
+
+  const duration = Date.now() - startTime;
+  console.log(`⏱️ getSingleIdea took ${duration}ms for idea ${id}`);
 
   return result;
 };
-
 // ==================== User's Own Ideas ====================
 
 export const getUserIdeas = async (

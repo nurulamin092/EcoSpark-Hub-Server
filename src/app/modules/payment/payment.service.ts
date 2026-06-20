@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Stripe from "stripe";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../errorHelpers/AppError";
@@ -9,7 +10,10 @@ import {
   NotificationType,
 } from "../../../generated/prisma/enums";
 import { NotificationService } from "../notification/notification.service";
-import { CheckoutSessionResult } from "./payment.interface";
+import {
+  AdminPaymentFilters,
+  CheckoutSessionResult,
+} from "./payment.interface";
 
 const createCheckoutSession = async (
   userId: string,
@@ -282,10 +286,172 @@ const getPaymentStatus = async (userId: string, ideaId: string) => {
   });
 };
 
+const getAllPaymentsForAdmin = async (filters: AdminPaymentFilters) => {
+  const { status, page, limit } = filters;
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+  if (status && status !== "ALL") {
+    where.status = status as PaymentStatus;
+  }
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        idea: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            price: true,
+          },
+        },
+      },
+    }),
+    prisma.payment.count({ where }),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: payments,
+  };
+};
+
+const approvePayment = async (paymentId: string, adminId: string) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      user: true,
+      idea: true,
+    },
+  });
+
+  if (!payment) {
+    throw new AppError(status.NOT_FOUND, "Payment not found");
+  }
+
+  if (payment.status === PaymentStatus.SUCCESS) {
+    throw new AppError(status.BAD_REQUEST, "Payment is already approved");
+  }
+
+  if (payment.status === PaymentStatus.FAILED) {
+    throw new AppError(status.BAD_REQUEST, "Cannot approve a failed payment");
+  }
+
+  // Update payment status
+  const updatedPayment = await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: PaymentStatus.SUCCESS,
+      accessExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      metadata: {
+        ...(payment.metadata as any),
+        approvedBy: adminId,
+        approvedAt: new Date().toISOString(),
+      },
+    },
+    include: {
+      user: true,
+      idea: true,
+    },
+  });
+
+  // Send notification to user
+  await NotificationService.createNotification(
+    payment.userId,
+    NotificationType.PAYMENT_SUCCESS,
+    "Payment Approved! 🎉",
+    `Your payment for "${payment.idea?.title || "Idea"}" has been approved by admin. You now have full access.`,
+    {
+      paymentId: payment.id,
+      ideaId: payment.ideaId,
+    },
+  );
+
+  return updatedPayment;
+};
+
+const rejectPayment = async (
+  paymentId: string,
+  adminId: string,
+  reason: string,
+) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      user: true,
+      idea: true,
+    },
+  });
+
+  if (!payment) {
+    throw new AppError(status.NOT_FOUND, "Payment not found");
+  }
+
+  if (payment.status !== PaymentStatus.PENDING) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      `Cannot reject payment with status: ${payment.status}`,
+    );
+  }
+
+  // Update payment status
+  const updatedPayment = await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: PaymentStatus.FAILED,
+      metadata: {
+        ...(payment.metadata as any),
+        rejectedBy: adminId,
+        rejectedAt: new Date().toISOString(),
+        rejectionReason: reason,
+      },
+    },
+    include: {
+      user: true,
+      idea: true,
+    },
+  });
+
+  // Send notification to user
+  await NotificationService.createNotification(
+    payment.userId,
+    NotificationType.PAYMENT_FAILED,
+    "Payment Rejected ❌",
+    `Your payment for "${payment.idea?.title || "Idea"}" was rejected by admin. Reason: ${reason}`,
+    {
+      paymentId: payment.id,
+      ideaId: payment.ideaId,
+      reason,
+    },
+  );
+
+  return updatedPayment;
+};
+
 export const PaymentService = {
   createCheckoutSession,
   handleWebhook,
   getMyPayments,
   verifyPaymentAccess,
   getPaymentStatus,
+  getAllPaymentsForAdmin,
+  approvePayment,
+  rejectPayment,
 };

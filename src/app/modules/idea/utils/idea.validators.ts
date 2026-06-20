@@ -45,21 +45,66 @@ export const validatePriceForPaidIdea = (
 /**
  * Check if user has access to paid idea
  */
+// export const checkPaidIdeaAccess = async (
+//   userId: string | undefined,
+//   ideaId: string,
+// ): Promise<boolean> => {
+//   if (!userId) return false;
+
+//   const payment = await prisma.payment.findFirst({
+//     where: {
+//       userId,
+//       ideaId,
+//       status: "SUCCESS",
+//       OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: new Date() } }],
+//     },
+//     select: { id: true },
+//   });
+
+//   return !!payment;
+// };
+
+// src/app/modules/idea/utils/idea.validators.ts
+
 export const checkPaidIdeaAccess = async (
-  userId: string | undefined,
+  userId: string,
   ideaId: string,
 ): Promise<boolean> => {
-  if (!userId) return false;
+  if (!userId || !ideaId) {
+    console.warn(`⚠️ checkPaidIdeaAccess: missing userId or ideaId`);
+    return false;
+  }
 
-  const payment = await prisma.payment.findFirst({
-    where: {
-      userId,
-      ideaId,
-      status: "SUCCESS",
-      OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: new Date() } }],
-    },
-    select: { id: true },
-  });
+  try {
+    const payment = await prisma.payment.findFirst({
+      where: {
+        userId: userId,
+        ideaId: ideaId,
+        status: "SUCCESS",
+        OR: [
+          { accessExpiresAt: null },
+          { accessExpiresAt: { gt: new Date() } },
+        ],
+      },
+      select: { id: true, status: true, accessExpiresAt: true },
+    });
 
-  return !!payment;
+    if (payment) {
+      console.log(
+        `✅ Found valid payment ${payment.id} for user ${userId}, idea ${ideaId}, status ${payment.status}, expires ${payment.accessExpiresAt}`,
+      );
+      return true;
+    } else {
+      console.log(
+        `❌ No valid payment found for user ${userId}, idea ${ideaId}`,
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error(
+      `❌ Error checking payment access for user ${userId}, idea ${ideaId}:`,
+      error,
+    );
+    return false;
+  }
 };
