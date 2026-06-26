@@ -1,7 +1,7 @@
 import { toNodeHandler } from "better-auth/node";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { Application, Request, Response } from "express";
+import express, { Application, NextFunction, Request, Response } from "express";
 import path from "path";
 import qs from "qs";
 import helmet from "helmet";
@@ -18,6 +18,39 @@ import {
 } from "./app/middleware/rateLimiter";
 
 const app: Application = express();
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://skill-bridge-web-client.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn(" Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  }),
+);
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log("================================");
+  console.log(` ${req.method} ${req.originalUrl}`);
+  console.log(" Origin:", req.headers.origin || "No origin");
+  console.log(" Cookie:", req.headers.cookie ? " Present" : " Not present");
+  console.log("================================");
+  next();
+});
 
 // ==================== Security Headers ====================
 app.use(
