@@ -1,6 +1,5 @@
 import { toNodeHandler } from "better-auth/node";
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import express, { Application, NextFunction, Request, Response } from "express";
 import path from "path";
 import qs from "qs";
@@ -20,7 +19,7 @@ import {
 const app: Application = express();
 
 // ============================================================
-// 🚀 PRODUCTION-GRADE CORS CONFIGURATION
+// 🚀 PRODUCTION-GRADE CORS CONFIGURATION (Express 5.x Compatible)
 // ============================================================
 
 const allowedOrigins = [
@@ -30,79 +29,98 @@ const allowedOrigins = [
   "http://localhost:5000",
   "https://eco-spark-hub-client-eta.vercel.app",
   "https://eco-spark-hub.vercel.app",
-  /\.vercel\.app$/,
-  /\.onrender\.com$/,
 ].filter(Boolean);
 
-// ✅ CORS Middleware with Production-Grade Configuration
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // ✅ Allow requests with no origin (like mobile apps or curl)
-      if (!origin) {
-        return callback(null, true);
-      }
+// ✅ Custom CORS Middleware (Express 5.x compatible - NO app.options("*"))
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
 
-      // ✅ Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+  // ✅ Check if origin is allowed
+  let isAllowed = false;
 
-      // ✅ Check if origin matches vercel.app pattern
-      const isVercelApp = /\.vercel\.app$/.test(origin);
-      if (isVercelApp) {
-        return callback(null, true);
-      }
+  // ✅ Exact match check
+  if (origin && allowedOrigins.includes(origin)) {
+    isAllowed = true;
+  }
 
-      // ✅ Check if origin matches onrender.com pattern
-      const isRenderApp = /\.onrender\.com$/.test(origin);
-      if (isRenderApp) {
-        return callback(null, true);
-      }
+  // ✅ Vercel pattern match (any .vercel.app)
+  if (origin && /\.vercel\.app$/.test(origin)) {
+    isAllowed = true;
+  }
 
-      // ✅ Development origins
-      const isLocalhost = /^https?:\/\/localhost(:\d+)?$/.test(origin);
-      if (isLocalhost) {
-        return callback(null, true);
-      }
+  // ✅ Render pattern match (any .onrender.com)
+  if (origin && /\.onrender\.com$/.test(origin)) {
+    isAllowed = true;
+  }
 
-      // ❌ Block all other origins
-      console.warn(`🚫 CORS blocked: ${origin}`);
-      return callback(new Error(`CORS policy: ${origin} not allowed`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "Cookie",
-      "Set-Cookie",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-      "Access-Control-Allow-Origin",
-      "Access-Control-Allow-Credentials",
+  // ✅ Localhost for development
+  if (origin && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+    isAllowed = true;
+  }
+
+  // ✅ No origin (curl, mobile apps, etc.)
+  if (!origin) {
+    isAllowed = true;
+  }
+
+  // ✅ Set CORS headers if allowed
+  if (isAllowed) {
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    } else {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
       "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.setHeader(
       "Access-Control-Allow-Headers",
-      "X-Response-Time",
-      "x-access-token",
-      "x-refresh-token",
-    ],
-    exposedHeaders: [
-      "Set-Cookie",
-      "Authorization",
-      "X-Response-Time",
-      "x-access-token",
-      "x-refresh-token",
-    ],
-    maxAge: 86400, // 24 hours
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  })
-);
+      [
+        "Content-Type",
+        "Authorization",
+        "Cookie",
+        "Set-Cookie",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Credentials",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers",
+        "X-Response-Time",
+        "x-access-token",
+        "x-refresh-token",
+      ].join(", ")
+    );
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      [
+        "Set-Cookie",
+        "Authorization",
+        "X-Response-Time",
+        "x-access-token",
+        "x-refresh-token",
+      ].join(", ")
+    );
+    res.setHeader("Access-Control-Max-Age", "86400");
+  } else {
+    console.warn(`🚫 CORS blocked: ${origin}`);
+    return res.status(403).json({
+      success: false,
+      message: `CORS policy: ${origin} not allowed`,
+    });
+  }
 
-// ✅ Handle preflight requests explicitly
-app.options("*", cors());
+  // ✅ Handle preflight OPTIONS request
+  if (req.method === "OPTIONS") {
+    return res.status(204).send();
+  }
+
+  next();
+});
 
 // ============================================================
 // 🚀 REQUEST LOGGER (Production & Development)
@@ -113,10 +131,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // ✅ Log request
   console.log("========================================");
-  console.log(`📌 [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(
+    `📌 [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`
+  );
   console.log(`🌐 Origin: ${req.headers.origin || "No origin"}`);
-  console.log(`🍪 Cookie: ${req.headers.cookie ? "✅ Present" : "❌ Not present"}`);
-  console.log(`🔑 Auth: ${req.headers.authorization ? "✅ Present" : "❌ Not present"}`);
+  console.log(
+    `🍪 Cookie: ${req.headers.cookie ? "✅ Present" : "❌ Not present"}`
+  );
+  console.log(
+    `🔑 Auth: ${req.headers.authorization ? "✅ Present" : "❌ Not present"}`
+  );
   console.log(`📦 Content-Type: ${req.headers["content-type"] || "None"}`);
 
   // ✅ Response interceptor for logging
@@ -146,7 +170,6 @@ app.use(
         connectSrc: [
           "'self'",
           "https://eco-spark-hub-client-eta.vercel.app",
-       
           "https://*.vercel.app",
           "https://*.onrender.com",
         ],
@@ -273,15 +296,15 @@ app.use(notFound);
 // ✅ Unhandled Promise Rejection Handler
 process.on("unhandledRejection", (error: Error) => {
   console.error("❌ Unhandled Promise Rejection:", error);
-  // In production, you might want to gracefully shutdown
-  // process.exit(1);
+  // In production, gracefully shutdown
+  process.exit(1);
 });
 
 // ✅ Uncaught Exception Handler
 process.on("uncaughtException", (error: Error) => {
   console.error("❌ Uncaught Exception:", error);
   // In production, gracefully shutdown
-  // process.exit(1);
+  process.exit(1);
 });
 
 export default app;
