@@ -6,6 +6,11 @@
 
 // Import all services
 import {
+  // User Management
+  getAllUsers,
+  updateUserRole,
+  // Admin Management
+  
   // Admin Management
   getAllAdmins as getAllAdminsService,
   getAdminById as getAdminByIdService,
@@ -33,6 +38,9 @@ import {
 
 // Create and export AdminService object
 export const AdminService = {
+  // User Management
+  getAllUsers,
+  updateUserRole,
   // Admin Management
   getAllAdmins: getAllAdminsService,
   getAdminById: getAdminByIdService,

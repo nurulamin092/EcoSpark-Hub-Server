@@ -6,6 +6,8 @@
 
 // Admin Management
 export {
+  getAllUsers,
+  updateUserRole,
   getAllAdmins,
   getAdminById,
   updateAdmin,

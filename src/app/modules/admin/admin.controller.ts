@@ -6,6 +6,38 @@ import { Parser } from "json2csv";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { AdminService } from "./admin.service";
+import AppError from "../../errorHelpers/AppError";
+
+// ==================== User Management ====================
+
+const getAllUsers = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminService.getAllUsers(req.query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "All users fetched successfully",
+    data: result,
+  });
+});
+
+const updateUserRole = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const { role } = req.body;
+
+  const result = await AdminService.updateUserRole(userId as string, role, {
+    userId: req.user?.userId,
+    ipAddress: req.ip, 
+    userAgent: req.headers["user-agent"],
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "User role updated successfully",
+    data: result,
+  });
+});
 
 // ==================== Admin Management ====================
 
@@ -36,7 +68,7 @@ const updateAdmin = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await AdminService.updateAdmin(id as string, req.body, {
     userId: req.user?.userId,
-    ip: req.ip,
+    ipAddress: req.ip,
     userAgent: req.headers["user-agent"],
   });
 
@@ -89,7 +121,7 @@ const updateMember = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await AdminService.updateMember(id as string, req.body, {
     userId: req.user?.userId,
-    ip: req.ip,
+    ipAddress: req.ip, // ✅ ipAddress
     userAgent: req.headers["user-agent"],
   });
 
@@ -103,7 +135,11 @@ const updateMember = catchAsync(async (req: Request, res: Response) => {
 
 const deleteMember = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await AdminService.deleteMember(id as string, req.user);
+  const result = await AdminService.deleteMember(id as string, {
+    userId: req.user?.userId,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -115,7 +151,11 @@ const deleteMember = catchAsync(async (req: Request, res: Response) => {
 
 const activateMember = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await AdminService.activateMember(id as string);
+  const result = await AdminService.activateMember(id as string, {
+    userId: req.user?.userId,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -127,7 +167,20 @@ const activateMember = catchAsync(async (req: Request, res: Response) => {
 
 const deactivateMember = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await AdminService.deactivateMember(id as string);
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length === 0) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Reason is required for deactivation",
+    );
+  }
+
+  const result = await AdminService.deactivateMember(id as string, reason, {
+    userId: req.user?.userId,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -193,7 +246,7 @@ const bulkDeactivateMembers = catchAsync(
   },
 );
 
-//* ==================== Dashboard ====================
+// ==================== Dashboard ====================
 
 const getDashboard = catchAsync(async (_req: Request, res: Response) => {
   const result = await AdminService.getFullDashboard();
@@ -261,6 +314,10 @@ const exportIdeas = catchAsync(async (req: Request, res: Response) => {
 // ==================== Exports ====================
 
 export const AdminController = {
+  // User Management
+  getAllUsers,
+  updateUserRole,
+
   // Admin Management
   getAllAdmins,
   getAdminById,
@@ -281,7 +338,7 @@ export const AdminController = {
   bulkActivateMembers,
   bulkDeactivateMembers,
 
-  // Dashboard & Idea Moderation
+  // Dashboard
   getDashboard,
 
   // Export

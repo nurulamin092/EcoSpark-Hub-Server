@@ -165,11 +165,11 @@ export interface IExportOptions {
 // ==================== Audit Types ====================
 
 export interface IMemberAuditContext {
-  userId: string;
+  userId?: string;
   userEmail?: string;
   ipAddress?: string;
   userAgent?: string;
-  action: string;
+  action?: string;
   reason?: string;
   metadata?: Record<string, any>;
 }

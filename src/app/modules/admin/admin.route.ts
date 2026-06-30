@@ -22,6 +22,19 @@ router.get(
   AdminController.getDashboard,
 );
 
+// ==================== user Management Routes ==========
+
+router.get(
+  "/users",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  AdminController.getAllUsers,
+);
+router.patch(
+  "/users/:userId/role",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  AdminController.updateUserRole,
+);
+
 // ==================== Admin Management Routes ====================
 
 router.get(

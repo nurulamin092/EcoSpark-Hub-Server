@@ -16,6 +16,151 @@ import { buildAdminWhereClause } from "../utils/admin.helpers";
 import { paginationHelper } from "../../../utils/paginationHelper";
 
 /**
+ * Get all users with pagination
+ */
+export const getAllUsers = async (query: any) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const search = query.search || "";
+  const role = query.role;
+  const status = query.status;
+
+  const where: any = { isDeleted: false };
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  if (role && role !== "ALL") {
+    where.role = role;
+  }
+
+  if (status && status !== "ALL") {
+    where.status = status;
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        member: true,
+        admin: true,
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: users,
+  };
+};
+
+/**
+ * Update user role with audit logging
+ */
+export const updateUserRole = async (
+  userId: string,
+  newRole: "SUPER_ADMIN" | "ADMIN" | "MEMBER",
+  meta?: { userId?: string; ipAddress?: string; userAgent?: string },
+) => {
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: { id: userId, isDeleted: false },
+    include: { member: true, admin: true },
+  });
+
+  if (!user) {
+    throw new AppError(status.NOT_FOUND, "User not found");
+  }
+
+  if (meta?.userId && meta.userId === userId) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: meta.userId },
+    });
+    if (currentUser?.role === "SUPER_ADMIN") {
+      throw new AppError(status.FORBIDDEN, "You cannot change your own role");
+    }
+  }
+
+  // Update user role
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    // Update user role
+    const updated = await tx.user.update({
+      where: { id: userId },
+      data: { role: newRole },
+    });
+
+    // Handle member/admin records based on new role
+    if (newRole === "MEMBER") {
+      if (user.admin) {
+        await tx.admin.update({
+          where: { userId },
+          data: { isDeleted: true, deletedAt: new Date() },
+        });
+      }
+      const existingMember = await tx.member.findUnique({
+        where: { userId },
+      });
+      if (!existingMember) {
+        await tx.member.create({
+          data: {
+            userId,
+            name: user.name,
+            email: user.email,
+          },
+        });
+      }
+    } else {
+      const existingAdmin = await tx.admin.findUnique({
+        where: { userId },
+      });
+      if (!existingAdmin) {
+        await tx.admin.create({
+          data: {
+            userId,
+            name: user.name,
+            email: user.email,
+          },
+        });
+      } else if (existingAdmin.isDeleted) {
+        await tx.admin.update({
+          where: { userId },
+          data: { isDeleted: false, deletedAt: null },
+        });
+      }
+    }
+
+    return updated;
+  });
+
+  await AuditLogService.createAuditLog({
+    userId: meta?.userId,
+    userEmail: user.email,
+    action: "UPDATE_ROLE",
+    entity: "USER",
+    entityId: userId,
+    oldValue: { role: user.role },
+    newValue: { role: newRole },
+    ipAddress: meta?.ipAddress,
+    userAgent: meta?.userAgent,
+  });
+
+  return updatedUser;
+};
+/**
  * Get all admins with pagination
  */
 export const getAllAdmins = async (query: any) => {
@@ -60,7 +205,7 @@ export const getAdminById = async (id: string) => {
 export const updateAdmin = async (
   id: string,
   payload: IUpdateAdminPayload,
-  meta?: { userId?: string; ip?: string; userAgent?: string },
+  meta?: { userId?: string; ipAddress?: string; userAgent?: string },
 ) => {
   const adminExist = await prisma.admin.findUnique({ where: { id } });
 
@@ -80,7 +225,7 @@ export const updateAdmin = async (
     entityId: id,
     oldValue: adminExist,
     newValue: updatedAdmin,
-    ipAddress: meta?.ip,
+    ipAddress: meta?.ipAddress,
     userAgent: meta?.userAgent,
   });
 
