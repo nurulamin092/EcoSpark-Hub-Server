@@ -157,23 +157,28 @@ export const auth = betterAuth({
   ],
 
   advanced: {
-    // disableCSRFCheck: true,
-    useSecureCookies: false,
+    // useSecureCookies: false,
+    useSecureCookies: envVars.NODE_ENV === "production",
+    disableCSRFCheck: true,
     cookies: {
       state: {
         attributes: {
           sameSite: "none",
-          secure: true,
+          secure: envVars.NODE_ENV === "production",
           httpOnly: true,
           path: "/",
+          domain:
+            envVars.NODE_ENV === "production" ? ".onrender.com" : undefined,
         },
       },
       sessionToken: {
         attributes: {
           sameSite: "none",
-          secure: true,
+          secure: envVars.NODE_ENV === "production",
           httpOnly: true,
           path: "/",
+          domain:
+            envVars.NODE_ENV === "production" ? ".onrender.com" : undefined,
         },
       },
     },
