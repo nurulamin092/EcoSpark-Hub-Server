@@ -2,6 +2,7 @@ import { JwtPayload, SignOptions } from "jsonwebtoken";
 import { envVars } from "../config/env";
 import { jwtUtils } from "./jwt";
 import { Response } from "express";
+import { isProduction } from "better-auth";
 
 const getAccessToken = (payload: JwtPayload) => {
   return jwtUtils.createToken(payload, envVars.ACCESS_TOKEN_SECRET, {
@@ -21,7 +22,7 @@ const setAccessTokenCookie = (res: Response, token: string) => {
   res.cookie("accessToken", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "lax",
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 24 * 60 * 60 * 1000, // 1 day
   });
@@ -32,7 +33,7 @@ const setRefreshTokenCookie = (res: Response, token: string) => {
   res.cookie("refreshToken", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "lax",
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
@@ -43,7 +44,7 @@ const setBetterAuthSessionCookie = (res: Response, token: string) => {
   res.cookie("better-auth.session_token", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "lax",
+   sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 24 * 60 * 60 * 1000,
   });
@@ -54,7 +55,7 @@ const setUserRoleCookie = (res: Response, role: string) => {
   res.cookie("userRole", role, {
     httpOnly: false, // Client needs to read this
     secure: isProduction,
-    sameSite: "lax",
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
@@ -74,8 +75,8 @@ const clearAllTokens = (res: Response) => {
     res.clearCookie(cookieName, {
       path: "/",
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     });
   });
 };
